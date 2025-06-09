@@ -216,5 +216,3 @@ This project is licensed under the MIT License. See `LICENSE` for details.
 - **Kubernetes**: For production-like deployment, apply manifests in `infrastructure/kubernetes/` using `kubectl`
 
 ---
-
-> This README provides a clear entry point for the team, outlining the project's structure and setup process. If you share the GitHub repo link, I can review or suggest specific improvements!
