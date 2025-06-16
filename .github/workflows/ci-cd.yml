@@ -61,70 +61,70 @@ jobs:
     - name: Test MongoDB Connection
       run: |
         cat > test_connection.js << 'EOF'
-print('MongoDB connection successful');
-print('Server version: ' + db.version());
-EOF
+        print('MongoDB connection successful');
+        print('Server version: ' + db.version());
+        EOF
         mongosh mongodb://admin:password123@localhost:27017/admin test_connection.js
 
     - name: Initialize NovaShop Databases
       run: |
         # Create initialization script
         cat > init_databases.js << 'EOF'
-// Create product database and user
-use productdb;
-if (!db.getUser('product_user')) {
-  db.createUser({
-    user: 'product_user',
-    pwd: 'product_pass',
-    roles: [{ role: 'readWrite', db: 'productdb' }]
-  });
-}
+        // Create product database and user
+        use productdb;
+        if (!db.getUser('product_user')) {
+          db.createUser({
+            user: 'product_user',
+            pwd: 'product_pass',
+            roles: [{ role: 'readWrite', db: 'productdb' }]
+          });
+        }
 
-// Create order database and user
-use orderdb;
-if (!db.getUser('order_user')) {
-  db.createUser({
-    user: 'order_user',
-    pwd: 'order_pass',
-    roles: [{ role: 'readWrite', db: 'orderdb' }]
-  });
-}
+        // Create order database and user
+        use orderdb;
+        if (!db.getUser('order_user')) {
+          db.createUser({
+            user: 'order_user',
+            pwd: 'order_pass',
+            roles: [{ role: 'readWrite', db: 'orderdb' }]
+          });
+        }
 
-// Create payment database and user
-use paymentdb;
-if (!db.getUser('payment_user')) {
-  db.createUser({
-    user: 'payment_user',
-    pwd: 'payment_pass',
-    roles: [{ role: 'readWrite', db: 'paymentdb' }]
-  });
-}
+        // Create payment database and user
+        use paymentdb;
+        if (!db.getUser('payment_user')) {
+          db.createUser({
+            user: 'payment_user',
+            pwd: 'payment_pass',
+            roles: [{ role: 'readWrite', db: 'paymentdb' }]
+          });
+        }
 
-print('Databases and users created successfully');
-EOF
+        print('Databases and users created successfully');
+        EOF
         mongosh mongodb://admin:password123@localhost:27017/admin init_databases.js
 
     - name: Validate Database Setup
       run: |
         # Test product database
         cat > test_product_db.js << 'EOF'
-db.products.insertOne({name: 'Test Product', price: 99.99});
-print('Product DB test: ' + db.products.countDocuments());
-EOF
+        db.products.insertOne({name: 'Test Product', price: 99.99});
+        print('Product DB test: ' + db.products.countDocuments());
+        EOF
         mongosh mongodb://product_user:product_pass@localhost:27017/productdb test_product_db.js
         
         # Test order database
         cat > test_order_db.js << 'EOF'
-db.orders.insertOne({orderId: 'test-123', total: 99.99});
-print('Order DB test: ' + db.orders.countDocuments());
-EOF
+        db.orders.insertOne({orderId: 'test-123', total: 99.99});
+        print('Order DB test: ' + db.orders.countDocuments());
+        EOF
         mongosh mongodb://order_user:order_pass@localhost:27017/orderdb test_order_db.js
         
         # Test payment database
         cat > test_payment_db.js << 'EOF'
-db.payments.insertOne({paymentId: 'pay-123', amount: 99.99});
-print('Payment DB test: ' + db.payments.countDocuments());
-EOF
+        db.payments.insertOne({paymentId: 'pay-123', amount: 99.99});
+        print('Payment DB test: ' + db.payments.countDocuments());
+        EOF
         mongosh mongodb://payment_user:payment_pass@localhost:27017/paymentdb test_payment_db.js
 
   # Lint and Validate Configuration Files
@@ -167,15 +167,15 @@ EOF
             echo "Validating $file..."
             # Use Python to validate YAML syntax instead of kubectl
             python3 -c "
-import yaml
-import sys
-try:
-    with open('$file', 'r') as f:
-        docs = list(yaml.safe_load_all(f))
-    print('✅ $file has valid YAML syntax')
-except Exception as e:
-    print('❌ $file has invalid YAML: ' + str(e))
-    sys.exit(1)
+            import yaml
+            import sys
+            try:
+                with open('$file', 'r') as f:
+                    docs = list(yaml.safe_load_all(f))
+                print('✅ $file has valid YAML syntax')
+            except Exception as e:
+                print('❌ $file has invalid YAML: ' + str(e))
+                sys.exit(1)
             "
           fi
         done
@@ -442,27 +442,27 @@ except Exception as e:
       run: |
         # Initialize test databases
         cat > setup_test_env.js << 'EOF'
-use productdb_test;
-db.createUser({
-  user: 'test_user',
-  pwd: 'test_pass',
-  roles: [{ role: 'readWrite', db: 'productdb_test' }]
-});
+        use productdb_test;
+        db.createUser({
+          user: 'test_user',
+          pwd: 'test_pass',
+          roles: [{ role: 'readWrite', db: 'productdb_test' }]
+        });
 
-use orderdb_test;
-db.createUser({
-  user: 'test_user',
-  pwd: 'test_pass',
-  roles: [{ role: 'readWrite', db: 'orderdb_test' }]
-});
+        use orderdb_test;
+        db.createUser({
+          user: 'test_user',
+          pwd: 'test_pass',
+          roles: [{ role: 'readWrite', db: 'orderdb_test' }]
+        });
 
-use paymentdb_test;
-db.createUser({
-  user: 'test_user',
-  pwd: 'test_pass',
-  roles: [{ role: 'readWrite', db: 'paymentdb_test' }]
-});
-EOF
+        use paymentdb_test;
+        db.createUser({
+          user: 'test_user',
+          pwd: 'test_pass',
+          roles: [{ role: 'readWrite', db: 'paymentdb_test' }]
+        });
+        EOF
         mongosh mongodb://admin:password123@localhost:27017/admin setup_test_env.js
 
     - name: Run integration tests
