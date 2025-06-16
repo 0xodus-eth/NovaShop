@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: novashop
+  labels:
+    name: novashop
+    environment: development

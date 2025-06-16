@@ -1,0 +1,26 @@
+services:
+  mongodb:
+    image: mongo:7.0
+    container_name: novashop-mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password123
+      MONGO_INITDB_DATABASE: novashop
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+      - ./init-scripts:/docker-entrypoint-initdb.d
+      - ./mongod.conf:/etc/mongod.conf
+    networks:
+      - novashop-network
+    command: mongod --config /etc/mongod.conf
+
+volumes:
+  mongodb_data:
+    driver: local
+
+networks:
+  novashop-network:
+    driver: bridge

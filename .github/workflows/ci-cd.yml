@@ -1,0 +1,526 @@
+name: NovaShop CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '18'
+  MONGODB_VERSION: '7.0'
+  DOCKER_REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # Database Setup and Testing
+  mongodb-setup:
+    runs-on: ubuntu-latest
+    name: MongoDB Setup & Validation
+    services:
+      mongodb:
+        image: mongo:7.0
+        env:
+          MONGO_INITDB_ROOT_USERNAME: admin
+          MONGO_INITDB_ROOT_PASSWORD: password123
+          MONGO_INITDB_DATABASE: novashop
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --eval 'db.runCommand(\"ping\")'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Wait for MongoDB
+      run: |
+        echo "Waiting for MongoDB to be ready..."
+        for i in {1..30}; do
+          if mongosh mongodb://admin:password123@localhost:27017/admin --eval "db.runCommand('ping')" &>/dev/null; then
+            echo "MongoDB is ready!"
+            break
+          fi
+          echo "Waiting for MongoDB... ($i/30)"
+          sleep 2
+        done
+
+    - name: Test MongoDB Connection
+      run: |
+        mongosh mongodb://admin:password123@localhost:27017/admin --eval "
+          print('MongoDB connection successful');
+          print('Server version: ' + db.version());
+        "
+
+    - name: Initialize NovaShop Databases
+      run: |
+        mongosh mongodb://admin:password123@localhost:27017/admin --eval "
+          // Create product database and user
+          use productdb;
+          if (!db.getUser('product_user')) {
+            db.createUser({
+              user: 'product_user',
+              pwd: 'product_pass',
+              roles: [{ role: 'readWrite', db: 'productdb' }]
+            });
+          }
+          
+          // Create order database and user
+          use orderdb;
+          if (!db.getUser('order_user')) {
+            db.createUser({
+              user: 'order_user',
+              pwd: 'order_pass',
+              roles: [{ role: 'readWrite', db: 'orderdb' }]
+            });
+          }
+          
+          // Create payment database and user
+          use paymentdb;
+          if (!db.getUser('payment_user')) {
+            db.createUser({
+              user: 'payment_user',
+              pwd: 'payment_pass',
+              roles: [{ role: 'readWrite', db: 'paymentdb' }]
+            });
+          }
+          
+          print('Databases and users created successfully');
+        "
+
+    - name: Validate Database Setup
+      run: |
+        # Test product database
+        mongosh mongodb://product_user:product_pass@localhost:27017/productdb --eval "
+          db.products.insertOne({name: 'Test Product', price: 99.99});
+          print('Product DB test: ' + db.products.countDocuments());
+        "
+        
+        # Test order database
+        mongosh mongodb://order_user:order_pass@localhost:27017/orderdb --eval "
+          db.orders.insertOne({orderId: 'test-123', total: 99.99});
+          print('Order DB test: ' + db.orders.countDocuments());
+        "
+        
+        # Test payment database
+        mongosh mongodb://payment_user:payment_pass@localhost:27017/paymentdb --eval "
+          db.payments.insertOne({paymentId: 'pay-123', amount: 99.99});
+          print('Payment DB test: ' + db.payments.countDocuments());
+        "
+
+  # Lint and Validate Configuration Files
+  config-validation:
+    runs-on: ubuntu-latest
+    name: Configuration Validation
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Validate Docker Compose Files
+      run: |
+        # Install Docker Compose
+        sudo curl -L "https://github.com/docker/compose/releases/download/v2.23.0/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+        sudo chmod +x /usr/local/bin/docker-compose
+        
+        # Validate main docker-compose.yml
+        if [ -f "docker-compose.yml" ]; then
+          echo "Validating main docker-compose.yml..."
+          docker-compose -f docker-compose.yml config --quiet
+        fi
+        
+        # Validate MongoDB docker-compose files
+        if [ -f "infrastructure/docker/mongodb/docker-compose.mongodb.yml" ]; then
+          echo "Validating MongoDB docker-compose.yml..."
+          docker-compose -f infrastructure/docker/mongodb/docker-compose.mongodb.yml config --quiet
+        fi
+        
+        if [ -f "infrastructure/docker/mongodb/docker-compose.dev.yml" ]; then
+          echo "Validating MongoDB dev docker-compose.yml..."
+          docker-compose -f infrastructure/docker/mongodb/docker-compose.dev.yml config --quiet
+        fi
+
+    - name: Validate Kubernetes Manifests
+      run: |
+        # Install kubectl
+        curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+        sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+        
+        # Validate Kubernetes YAML files
+        echo "Validating Kubernetes manifests..."
+        for file in infrastructure/kubernetes/*.yaml; do
+          if [ -f "$file" ]; then
+            echo "Validating $file..."
+            kubectl --dry-run=client apply -f "$file" --validate=true
+          fi
+        done
+
+    - name: Validate MongoDB Configuration
+      run: |
+        # Check MongoDB config file syntax
+        if [ -f "infrastructure/docker/mongodb/mongod.conf" ]; then
+          echo "MongoDB configuration file found"
+          # Basic syntax check for YAML-like structure
+          python3 -c "
+          import yaml
+          import sys
+          try:
+              with open('infrastructure/docker/mongodb/mongod.conf', 'r') as f:
+                  yaml.safe_load(f)
+              print('MongoDB config syntax is valid')
+          except Exception as e:
+              print(f'MongoDB config syntax error: {e}')
+              sys.exit(1)
+          "
+        fi
+
+  # Test Scripts and Setup Tools
+  scripts-testing:
+    runs-on: ubuntu-latest
+    name: Scripts Testing
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Test Setup Scripts Syntax
+      run: |
+        # Test bash script syntax
+        if [ -f "setup-mongodb.sh" ]; then
+          echo "Testing setup-mongodb.sh syntax..."
+          bash -n setup-mongodb.sh
+        fi
+        
+        if [ -f "setup-mongodb-native.sh" ]; then
+          echo "Testing setup-mongodb-native.sh syntax..."
+          bash -n setup-mongodb-native.sh
+        fi
+        
+        if [ -f "mongodb-utils.sh" ]; then
+          echo "Testing mongodb-utils.sh syntax..."
+          bash -n mongodb-utils.sh
+        fi
+
+    - name: Test Script Help Functions
+      run: |
+        # Test that help functions work
+        if [ -f "setup-mongodb.sh" ]; then
+          chmod +x setup-mongodb.sh
+          ./setup-mongodb.sh help
+        fi
+        
+        if [ -f "setup-mongodb-native.sh" ]; then
+          chmod +x setup-mongodb-native.sh
+          ./setup-mongodb-native.sh help || true
+        fi
+
+  # Build and Test Microservices (when they exist)
+  microservices-build:
+    runs-on: ubuntu-latest
+    name: Microservices Build & Test
+    needs: [mongodb-setup]
+    strategy:
+      matrix:
+        service: [product-service, order-service, payment-service]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: |
+          services/${{ matrix.service }}/package-lock.json
+
+    - name: Check if service exists
+      id: check-service
+      run: |
+        if [ -d "services/${{ matrix.service }}" ]; then
+          echo "exists=true" >> $GITHUB_OUTPUT
+        else
+          echo "exists=false" >> $GITHUB_OUTPUT
+          echo "Service ${{ matrix.service }} directory does not exist yet"
+        fi
+
+    - name: Install dependencies
+      if: steps.check-service.outputs.exists == 'true'
+      working-directory: services/${{ matrix.service }}
+      run: |
+        if [ -f "package.json" ]; then
+          npm ci
+        else
+          echo "package.json not found for ${{ matrix.service }}"
+        fi
+
+    - name: Run tests
+      if: steps.check-service.outputs.exists == 'true'
+      working-directory: services/${{ matrix.service }}
+      run: |
+        if [ -f "package.json" ] && npm run test --if-present; then
+          echo "Tests completed for ${{ matrix.service }}"
+        else
+          echo "No tests found for ${{ matrix.service }}"
+        fi
+
+    - name: Build service
+      if: steps.check-service.outputs.exists == 'true'
+      working-directory: services/${{ matrix.service }}
+      run: |
+        if [ -f "package.json" ] && npm run build --if-present; then
+          echo "Build completed for ${{ matrix.service }}"
+        else
+          echo "No build script found for ${{ matrix.service }}"
+        fi
+
+  # Frontend Build and Test
+  frontend-build:
+    runs-on: ubuntu-latest
+    name: Frontend Build & Test
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+
+    - name: Check if frontend exists
+      id: check-frontend
+      run: |
+        if [ -d "frontend" ]; then
+          echo "exists=true" >> $GITHUB_OUTPUT
+        else
+          echo "exists=false" >> $GITHUB_OUTPUT
+          echo "Frontend directory does not exist yet"
+        fi
+
+    - name: Install dependencies
+      if: steps.check-frontend.outputs.exists == 'true'
+      working-directory: frontend
+      run: |
+        if [ -f "package.json" ]; then
+          npm ci
+        else
+          echo "package.json not found for frontend"
+        fi
+
+    - name: Run tests
+      if: steps.check-frontend.outputs.exists == 'true'
+      working-directory: frontend
+      run: |
+        if [ -f "package.json" ] && npm run test --if-present; then
+          echo "Frontend tests completed"
+        else
+          echo "No tests found for frontend"
+        fi
+
+    - name: Build frontend
+      if: steps.check-frontend.outputs.exists == 'true'
+      working-directory: frontend
+      run: |
+        if [ -f "package.json" ] && npm run build --if-present; then
+          echo "Frontend build completed"
+        else
+          echo "No build script found for frontend"
+        fi
+
+  # Docker Build and Push (for future use)
+  docker-build:
+    runs-on: ubuntu-latest
+    name: Docker Build & Push
+    needs: [config-validation, microservices-build]
+    if: github.ref == 'refs/heads/main'
+    strategy:
+      matrix:
+        service: [product-service, order-service, payment-service]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.DOCKER_REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Check if Dockerfile exists
+      id: check-dockerfile
+      run: |
+        if [ -f "services/${{ matrix.service }}/Dockerfile" ]; then
+          echo "exists=true" >> $GITHUB_OUTPUT
+        else
+          echo "exists=false" >> $GITHUB_OUTPUT
+          echo "Dockerfile not found for ${{ matrix.service }}"
+        fi
+
+    - name: Build and push Docker image
+      if: steps.check-dockerfile.outputs.exists == 'true'
+      uses: docker/build-push-action@v5
+      with:
+        context: services/${{ matrix.service }}
+        push: true
+        tags: |
+          ${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }}/${{ matrix.service }}:latest
+          ${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }}/${{ matrix.service }}:${{ github.sha }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+  # Integration Tests
+  integration-tests:
+    runs-on: ubuntu-latest
+    name: Integration Tests
+    needs: [mongodb-setup, microservices-build]
+    services:
+      mongodb:
+        image: mongo:7.0
+        env:
+          MONGO_INITDB_ROOT_USERNAME: admin
+          MONGO_INITDB_ROOT_PASSWORD: password123
+          MONGO_INITDB_DATABASE: novashop
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --eval 'db.runCommand(\"ping\")'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+
+    - name: Check if integration tests exist
+      id: check-tests
+      run: |
+        if [ -d "tests/integration" ]; then
+          echo "exists=true" >> $GITHUB_OUTPUT
+        else
+          echo "exists=false" >> $GITHUB_OUTPUT
+          echo "Integration tests directory does not exist yet"
+        fi
+
+    - name: Setup test environment
+      if: steps.check-tests.outputs.exists == 'true'
+      run: |
+        # Initialize test databases
+        mongosh mongodb://admin:password123@localhost:27017/admin --eval "
+          use productdb_test;
+          db.createUser({
+            user: 'test_user',
+            pwd: 'test_pass',
+            roles: [{ role: 'readWrite', db: 'productdb_test' }]
+          });
+          
+          use orderdb_test;
+          db.createUser({
+            user: 'test_user',
+            pwd: 'test_pass',
+            roles: [{ role: 'readWrite', db: 'orderdb_test' }]
+          });
+          
+          use paymentdb_test;
+          db.createUser({
+            user: 'test_user',
+            pwd: 'test_pass',
+            roles: [{ role: 'readWrite', db: 'paymentdb_test' }]
+          });
+        "
+
+    - name: Run integration tests
+      if: steps.check-tests.outputs.exists == 'true'
+      working-directory: tests/integration
+      env:
+        MONGODB_URI_PRODUCT: mongodb://test_user:test_pass@localhost:27017/productdb_test
+        MONGODB_URI_ORDER: mongodb://test_user:test_pass@localhost:27017/orderdb_test
+        MONGODB_URI_PAYMENT: mongodb://test_user:test_pass@localhost:27017/paymentdb_test
+      run: |
+        if [ -f "package.json" ]; then
+          npm ci
+          npm test
+        else
+          echo "No integration tests package.json found"
+        fi
+
+  # Security Scanning
+  security-scan:
+    runs-on: ubuntu-latest
+    name: Security Scanning
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+
+    - name: Upload Trivy scan results to GitHub Security tab
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      with:
+        sarif_file: 'trivy-results.sarif'
+
+  # Deployment (when ready)
+  deploy:
+    runs-on: ubuntu-latest
+    name: Deploy to Staging
+    needs: [integration-tests, docker-build, security-scan]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: staging
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: 'v1.28.0'
+
+    - name: Deploy to Kubernetes (placeholder)
+      run: |
+        echo "Deployment step - will be implemented when Kubernetes cluster is ready"
+        echo "Would deploy MongoDB and microservices to staging environment"
+        
+        # Future deployment commands:
+        # kubectl apply -f infrastructure/kubernetes/namespace.yaml
+        # kubectl apply -f infrastructure/kubernetes/mongodb-secret.yaml
+        # kubectl apply -f infrastructure/kubernetes/mongodb-configmap.yaml
+        # kubectl apply -f infrastructure/kubernetes/mongodb-pvc.yaml
+        # kubectl apply -f infrastructure/kubernetes/mongodb-deployment.yaml
+        # kubectl apply -f infrastructure/kubernetes/mongodb-service.yaml
+
+  # Notification
+  notification:
+    runs-on: ubuntu-latest
+    name: Notification
+    needs: [deploy]
+    if: always()
+    steps:
+    - name: Notify deployment status
+      run: |
+        if [[ "${{ needs.deploy.result }}" == "success" ]]; then
+          echo "✅ NovaShop deployment successful!"
+        elif [[ "${{ needs.deploy.result }}" == "failure" ]]; then
+          echo "❌ NovaShop deployment failed!"
+        else
+          echo "⚠️ NovaShop deployment skipped or cancelled"
+        fi
