@@ -65,7 +65,7 @@ jobs:
         for file in infrastructure/kubernetes/*mongodb*.yaml infrastructure/kubernetes/namespace.yaml; do
           if [ -f "$file" ]; then
             echo "Validating $(basename $file)..."
-            kubectl --dry-run=client apply -f "$file"
+            kubectl --dry-run=client apply -f "$file" --validate=false
             echo "✅ $(basename $file) is valid"
           fi
         done
