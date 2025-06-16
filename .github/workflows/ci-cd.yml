@@ -37,6 +37,13 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
+    - name: Install mongosh
+      run: |
+        echo "Installing MongoDB shell (mongosh)..."
+        curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+        sudo apt-get install -y mongodb-mongosh
+        mongosh --version
+
     - name: Wait for MongoDB
       run: |
         echo "Waiting for MongoDB to be ready..."
@@ -154,7 +161,7 @@ jobs:
         for file in infrastructure/kubernetes/*.yaml; do
           if [ -f "$file" ]; then
             echo "Validating $file..."
-            kubectl --dry-run=client apply -f "$file" --validate=true
+            kubectl --dry-run=client apply -f "$file"
           fi
         done
 
