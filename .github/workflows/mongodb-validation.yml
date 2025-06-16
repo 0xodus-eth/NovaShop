@@ -61,12 +61,22 @@ jobs:
         
         echo "✅ Validating Kubernetes manifests..."
         
-        # Validate each Kubernetes file
+        # Validate each Kubernetes file (syntax only, no cluster connection)
         for file in infrastructure/kubernetes/*mongodb*.yaml infrastructure/kubernetes/namespace.yaml; do
           if [ -f "$file" ]; then
             echo "Validating $(basename $file)..."
-            kubectl --dry-run=client apply -f "$file" --validate=false
-            echo "✅ $(basename $file) is valid"
+            # Use kubeval for offline validation or simple YAML syntax check
+            python3 -c "
+import yaml
+import sys
+try:
+    with open('$file', 'r') as f:
+        docs = list(yaml.safe_load_all(f))
+    print('✅ $(basename $file) has valid YAML syntax')
+except Exception as e:
+    print('❌ $(basename $file) has invalid YAML: ' + str(e))
+    sys.exit(1)
+            "
           fi
         done
 
@@ -137,64 +147,67 @@ jobs:
       run: |
         echo "🔧 Testing database initialization script..."
         
-        # Copy and run the initialization script logic
-        mongosh mongodb://admin:password123@localhost:27017/admin --eval "
-          // Create product database and user
-          use productdb;
-          if (!db.getUser('product_user')) {
-            db.createUser({
-              user: 'product_user',
-              pwd: 'product_pass',
-              roles: [{ role: 'readWrite', db: 'productdb' }]
-            });
-          }
-          db.createCollection('products');
-          
-          // Create order database and user
-          use orderdb;
-          if (!db.getUser('order_user')) {
-            db.createUser({
-              user: 'order_user',
-              pwd: 'order_pass',
-              roles: [{ role: 'readWrite', db: 'orderdb' }]
-            });
-          }
-          db.createCollection('orders');
-          
-          // Create payment database and user
-          use paymentdb;
-          if (!db.getUser('payment_user')) {
-            db.createUser({
-              user: 'payment_user',
-              pwd: 'payment_pass',
-              roles: [{ role: 'readWrite', db: 'paymentdb' }]
-            });
-          }
-          db.createCollection('payments');
-          
-          // Insert sample data
-          use productdb;
-          db.products.insertMany([
-            {
-              name: 'Test Laptop',
-              description: 'High-performance laptop for testing',
-              price: 1299.99,
-              category: 'Electronics',
-              stock: 50,
-              createdAt: new Date()
-            },
-            {
-              name: 'Test Mouse',
-              description: 'Ergonomic wireless mouse for testing',
-              price: 29.99,
-              category: 'Electronics',
-              stock: 100,
-              createdAt: new Date()
-            }
-          ]);
-          
-          print('✅ Database initialization completed successfully!');
-        "
+        # Create initialization script file
+        cat > init_test.js << 'EOF'
+// Create product database and user
+use productdb;
+if (!db.getUser('product_user')) {
+  db.createUser({
+    user: 'product_user',
+    pwd: 'product_pass',
+    roles: [{ role: 'readWrite', db: 'productdb' }]
+  });
+}
+db.createCollection('products');
+
+// Create order database and user
+use orderdb;
+if (!db.getUser('order_user')) {
+  db.createUser({
+    user: 'order_user',
+    pwd: 'order_pass',
+    roles: [{ role: 'readWrite', db: 'orderdb' }]
+  });
+}
+db.createCollection('orders');
+
+// Create payment database and user
+use paymentdb;
+if (!db.getUser('payment_user')) {
+  db.createUser({
+    user: 'payment_user',
+    pwd: 'payment_pass',
+    roles: [{ role: 'readWrite', db: 'paymentdb' }]
+  });
+}
+db.createCollection('payments');
+
+// Insert sample data
+use productdb;
+db.products.insertMany([
+  {
+    name: 'Test Laptop',
+    description: 'High-performance laptop for testing',
+    price: 1299.99,
+    category: 'Electronics',
+    stock: 50,
+    createdAt: new Date()
+  },
+  {
+    name: 'Test Mouse',
+    description: 'Ergonomic wireless mouse for testing',
+    price: 29.99,
+    category: 'Electronics',
+    stock: 100,
+    createdAt: new Date()
+  }
+]);
+
+print('✅ Database initialization completed successfully!');
+EOF
+        
+        # Run the initialization script
+        mongosh mongodb://admin:password123@localhost:27017/admin init_test.js
 
     - name: Validate Database Connections
       run: |
@@ -202,39 +215,47 @@ jobs:
         
         # Test product database
         echo "Testing Product Database..."
-        mongosh mongodb://product_user:product_pass@localhost:27017/productdb --eval "
-          const count = db.products.countDocuments();
-          print('Product count: ' + count);
-          if (count > 0) {
-            print('✅ Product database connection successful');
-          } else {
-            print('❌ Product database connection failed');
-            quit(1);
-          }
-        "
+        cat > test_product.js << 'EOF'
+const count = db.products.countDocuments();
+print('Product count: ' + count);
+if (count > 0) {
+  print('✅ Product database connection successful');
+} else {
+  print('❌ Product database connection failed');
+  quit(1);
+}
+EOF
+        mongosh mongodb://product_user:product_pass@localhost:27017/productdb test_product.js
         
         # Test order database
         echo "Testing Order Database..."
-        mongosh mongodb://order_user:order_pass@localhost:27017/orderdb --eval "
-          db.orders.insertOne({orderId: 'test-order-123', total: 99.99, status: 'pending'});
-          const count = db.orders.countDocuments();
-          print('Order count: ' + count);
-          if (count > 0) {
-            print('✅ Order database connection successful');
-          } else {
-            print('❌ Order database connection failed');
-            quit(1);
-          }
-        "
+        cat > test_order.js << 'EOF'
+db.orders.insertOne({orderId: 'test-order-123', total: 99.99, status: 'pending'});
+const count = db.orders.countDocuments();
+print('Order count: ' + count);
+if (count > 0) {
+  print('✅ Order database connection successful');
+} else {
+  print('❌ Order database connection failed');
+  quit(1);
+}
+EOF
+        mongosh mongodb://order_user:order_pass@localhost:27017/orderdb test_order.js
         
         # Test payment database
         echo "Testing Payment Database..."
-        mongosh mongodb://payment_user:payment_pass@localhost:27017/paymentdb --eval "
-          db.payments.insertOne({paymentId: 'test-pay-123', amount: 99.99, status: 'completed'});
-          const count = db.payments.countDocuments();
-          print('Payment count: ' + count);
-          if (count > 0) {
-            print('✅ Payment database connection successful');
+        cat > test_payment.js << 'EOF'
+db.payments.insertOne({paymentId: 'test-pay-123', amount: 99.99, status: 'completed'});
+const count = db.payments.countDocuments();
+print('Payment count: ' + count);
+if (count > 0) {
+  print('✅ Payment database connection successful');
+} else {
+  print('❌ Payment database connection failed');
+  quit(1);
+}
+EOF
+        mongosh mongodb://payment_user:payment_pass@localhost:27017/paymentdb test_payment.js
           } else {
             print('❌ Payment database connection failed');
             quit(1);
@@ -246,34 +267,35 @@ jobs:
         echo "🧪 Testing CRUD operations..."
         
         # Test product operations
-        mongosh mongodb://product_user:product_pass@localhost:27017/productdb --eval "
-          // Create
-          const result = db.products.insertOne({
-            name: 'CI Test Product',
-            price: 49.99,
-            category: 'Test',
-            stock: 25,
-            createdAt: new Date()
-          });
-          print('✅ Product created: ' + result.insertedId);
-          
-          // Read
-          const product = db.products.findOne({name: 'CI Test Product'});
-          print('✅ Product found: ' + product.name);
-          
-          // Update
-          db.products.updateOne(
-            {name: 'CI Test Product'},
-            {\$set: {price: 59.99, updatedAt: new Date()}}
-          );
-          print('✅ Product updated');
-          
-          // Delete
-          db.products.deleteOne({name: 'CI Test Product'});
-          print('✅ Product deleted');
-          
-          print('✅ All CRUD operations successful!');
-        "
+        cat > test_crud.js << 'EOF'
+// Create
+const result = db.products.insertOne({
+  name: 'CI Test Product',
+  price: 49.99,
+  category: 'Test',
+  stock: 25,
+  createdAt: new Date()
+});
+print('✅ Product created: ' + result.insertedId);
+
+// Read
+const product = db.products.findOne({name: 'CI Test Product'});
+print('✅ Product found: ' + product.name);
+
+// Update
+db.products.updateOne(
+  {name: 'CI Test Product'},
+  {$set: {price: 59.99, updatedAt: new Date()}}
+);
+print('✅ Product updated');
+
+// Delete
+db.products.deleteOne({name: 'CI Test Product'});
+print('✅ Product deleted');
+
+print('✅ All CRUD operations successful!');
+EOF
+        mongosh mongodb://product_user:product_pass@localhost:27017/productdb test_crud.js
 
   security-check:
     runs-on: ubuntu-latest
