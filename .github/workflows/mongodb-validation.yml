@@ -1,0 +1,372 @@
+name: MongoDB Setup Validation
+
+on:
+  push:
+    paths:
+      - 'infrastructure/docker/mongodb/**'
+      - 'infrastructure/kubernetes/*mongodb*'
+      - 'setup-mongodb*.sh'
+      - 'mongodb-utils.sh'
+  pull_request:
+    paths:
+      - 'infrastructure/docker/mongodb/**'
+      - 'infrastructure/kubernetes/*mongodb*'
+      - 'setup-mongodb*.sh'
+      - 'mongodb-utils.sh'
+  workflow_dispatch:
+
+jobs:
+  validate-mongodb-config:
+    runs-on: ubuntu-latest
+    name: Validate MongoDB Configuration
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Validate MongoDB Docker Compose Files
+      run: |
+        # Install Docker Compose
+        sudo curl -L "https://github.com/docker/compose/releases/download/v2.23.0/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+        sudo chmod +x /usr/local/bin/docker-compose
+        
+        echo "✅ Validating MongoDB Docker Compose configurations..."
+        
+        # Validate main MongoDB compose file
+        if [ -f "infrastructure/docker/mongodb/docker-compose.mongodb.yml" ]; then
+          echo "Validating docker-compose.mongodb.yml..."
+          docker-compose -f infrastructure/docker/mongodb/docker-compose.mongodb.yml config --quiet
+          echo "✅ docker-compose.mongodb.yml is valid"
+        fi
+        
+        # Validate dev MongoDB compose file
+        if [ -f "infrastructure/docker/mongodb/docker-compose.dev.yml" ]; then
+          echo "Validating docker-compose.dev.yml..."
+          docker-compose -f infrastructure/docker/mongodb/docker-compose.dev.yml config --quiet
+          echo "✅ docker-compose.dev.yml is valid"
+        fi
+        
+        # Validate main project compose file
+        if [ -f "docker-compose.yml" ]; then
+          echo "Validating main docker-compose.yml..."
+          docker-compose -f docker-compose.yml config --quiet
+          echo "✅ main docker-compose.yml is valid"
+        fi
+
+    - name: Validate Kubernetes Manifests
+      run: |
+        # Install kubectl
+        curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+        sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+        
+        echo "✅ Validating Kubernetes manifests..."
+        
+        # Validate each Kubernetes file (syntax only, no cluster connection)
+        for file in infrastructure/kubernetes/*mongodb*.yaml infrastructure/kubernetes/namespace.yaml; do
+          if [ -f "$file" ]; then
+            echo "Validating $(basename $file)..."
+            # Use kubeval for offline validation or simple YAML syntax check
+            python3 -c "
+import yaml
+import sys
+try:
+    with open('$file', 'r') as f:
+        docs = list(yaml.safe_load_all(f))
+    print('✅ $(basename $file) has valid YAML syntax')
+except Exception as e:
+    print('❌ $(basename $file) has invalid YAML: ' + str(e))
+    sys.exit(1)
+            "
+          fi
+        done
+
+    - name: Test Setup Scripts
+      run: |
+        echo "✅ Testing setup script syntax..."
+        
+        # Test script syntax
+        if [ -f "setup-mongodb.sh" ]; then
+          echo "Testing setup-mongodb.sh..."
+          bash -n setup-mongodb.sh
+          chmod +x setup-mongodb.sh
+          ./setup-mongodb.sh help
+          echo "✅ setup-mongodb.sh syntax is valid"
+        fi
+        
+        if [ -f "setup-mongodb-native.sh" ]; then
+          echo "Testing setup-mongodb-native.sh..."
+          bash -n setup-mongodb-native.sh
+          chmod +x setup-mongodb-native.sh
+          echo "✅ setup-mongodb-native.sh syntax is valid"
+        fi
+        
+        if [ -f "mongodb-utils.sh" ]; then
+          echo "Testing mongodb-utils.sh..."
+          bash -n mongodb-utils.sh
+          chmod +x mongodb-utils.sh
+          echo "✅ mongodb-utils.sh syntax is valid"
+        fi
+
+  test-mongodb-deployment:
+    runs-on: ubuntu-latest
+    name: Test MongoDB Deployment
+    needs: validate-mongodb-config
+    
+    services:
+      mongodb:
+        image: mongo:7.0
+        env:
+          MONGO_INITDB_ROOT_USERNAME: admin
+          MONGO_INITDB_ROOT_PASSWORD: password123
+          MONGO_INITDB_DATABASE: novashop
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --eval 'db.runCommand(\"ping\")'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Wait for MongoDB
+      run: |
+        echo "⏳ Waiting for MongoDB to be ready..."
+        for i in {1..30}; do
+          if mongosh mongodb://admin:password123@localhost:27017/admin --eval "db.runCommand('ping')" &>/dev/null; then
+            echo "✅ MongoDB is ready!"
+            break
+          fi
+          echo "Waiting for MongoDB... ($i/30)"
+          sleep 2
+        done
+
+    - name: Test Database Initialization
+      run: |
+        echo "🔧 Testing database initialization script..."
+        
+        # Create initialization script file
+        cat > init_test.js << 'EOF'
+// Create product database and user
+use productdb;
+if (!db.getUser('product_user')) {
+  db.createUser({
+    user: 'product_user',
+    pwd: 'product_pass',
+    roles: [{ role: 'readWrite', db: 'productdb' }]
+  });
+}
+db.createCollection('products');
+
+// Create order database and user
+use orderdb;
+if (!db.getUser('order_user')) {
+  db.createUser({
+    user: 'order_user',
+    pwd: 'order_pass',
+    roles: [{ role: 'readWrite', db: 'orderdb' }]
+  });
+}
+db.createCollection('orders');
+
+// Create payment database and user
+use paymentdb;
+if (!db.getUser('payment_user')) {
+  db.createUser({
+    user: 'payment_user',
+    pwd: 'payment_pass',
+    roles: [{ role: 'readWrite', db: 'paymentdb' }]
+  });
+}
+db.createCollection('payments');
+
+// Insert sample data
+use productdb;
+db.products.insertMany([
+  {
+    name: 'Test Laptop',
+    description: 'High-performance laptop for testing',
+    price: 1299.99,
+    category: 'Electronics',
+    stock: 50,
+    createdAt: new Date()
+  },
+  {
+    name: 'Test Mouse',
+    description: 'Ergonomic wireless mouse for testing',
+    price: 29.99,
+    category: 'Electronics',
+    stock: 100,
+    createdAt: new Date()
+  }
+]);
+
+print('✅ Database initialization completed successfully!');
+EOF
+        
+        # Run the initialization script
+        mongosh mongodb://admin:password123@localhost:27017/admin init_test.js
+
+    - name: Validate Database Connections
+      run: |
+        echo "🔍 Testing database connections..."
+        
+        # Test product database
+        echo "Testing Product Database..."
+        cat > test_product.js << 'EOF'
+const count = db.products.countDocuments();
+print('Product count: ' + count);
+if (count > 0) {
+  print('✅ Product database connection successful');
+} else {
+  print('❌ Product database connection failed');
+  quit(1);
+}
+EOF
+        mongosh mongodb://product_user:product_pass@localhost:27017/productdb test_product.js
+        
+        # Test order database
+        echo "Testing Order Database..."
+        cat > test_order.js << 'EOF'
+db.orders.insertOne({orderId: 'test-order-123', total: 99.99, status: 'pending'});
+const count = db.orders.countDocuments();
+print('Order count: ' + count);
+if (count > 0) {
+  print('✅ Order database connection successful');
+} else {
+  print('❌ Order database connection failed');
+  quit(1);
+}
+EOF
+        mongosh mongodb://order_user:order_pass@localhost:27017/orderdb test_order.js
+        
+        # Test payment database
+        echo "Testing Payment Database..."
+        cat > test_payment.js << 'EOF'
+db.payments.insertOne({paymentId: 'test-pay-123', amount: 99.99, status: 'completed'});
+const count = db.payments.countDocuments();
+print('Payment count: ' + count);
+if (count > 0) {
+  print('✅ Payment database connection successful');
+} else {
+  print('❌ Payment database connection failed');
+  quit(1);
+}
+EOF
+        mongosh mongodb://payment_user:payment_pass@localhost:27017/paymentdb test_payment.js
+          } else {
+            print('❌ Payment database connection failed');
+            quit(1);
+          }
+        "
+
+    - name: Test Database Operations
+      run: |
+        echo "🧪 Testing CRUD operations..."
+        
+        # Test product operations
+        cat > test_crud.js << 'EOF'
+// Create
+const result = db.products.insertOne({
+  name: 'CI Test Product',
+  price: 49.99,
+  category: 'Test',
+  stock: 25,
+  createdAt: new Date()
+});
+print('✅ Product created: ' + result.insertedId);
+
+// Read
+const product = db.products.findOne({name: 'CI Test Product'});
+print('✅ Product found: ' + product.name);
+
+// Update
+db.products.updateOne(
+  {name: 'CI Test Product'},
+  {$set: {price: 59.99, updatedAt: new Date()}}
+);
+print('✅ Product updated');
+
+// Delete
+db.products.deleteOne({name: 'CI Test Product'});
+print('✅ Product deleted');
+
+print('✅ All CRUD operations successful!');
+EOF
+        mongosh mongodb://product_user:product_pass@localhost:27017/productdb test_crud.js
+
+  security-check:
+    runs-on: ubuntu-latest
+    name: Security Configuration Check
+    needs: validate-mongodb-config
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Check for Security Issues
+      run: |
+        echo "🔒 Checking for security issues in MongoDB configuration..."
+        
+        # Check for default passwords in production files
+        echo "Checking for default passwords..."
+        if grep -r "password123" infrastructure/ --include="*.yml" --include="*.yaml" | grep -v "# Example" | grep -v "development"; then
+          echo "⚠️ WARNING: Default passwords found in configuration files"
+          echo "Please change default passwords before production deployment"
+        else
+          echo "✅ No default passwords found in production configurations"
+        fi
+        
+        # Check for proper authentication in MongoDB config
+        echo "Checking MongoDB security settings..."
+        if grep -q "authorization: enabled" infrastructure/docker/mongodb/mongod.conf; then
+          echo "✅ MongoDB authorization is enabled"
+        else
+          echo "⚠️ WARNING: MongoDB authorization not explicitly enabled"
+        fi
+        
+        # Check for network security
+        if grep -q "bindIpAll: true" infrastructure/docker/mongodb/mongod.conf; then
+          echo "⚠️ WARNING: MongoDB is configured to bind to all IPs"
+          echo "Consider restricting network access in production"
+        fi
+
+    - name: Generate Security Report
+      run: |
+        echo "📋 Security Configuration Report" > security-report.md
+        echo "=================================" >> security-report.md
+        echo "" >> security-report.md
+        echo "Generated on: $(date)" >> security-report.md
+        echo "" >> security-report.md
+        echo "### MongoDB Security Settings" >> security-report.md
+        echo "" >> security-report.md
+        
+        if grep -q "authorization: enabled" infrastructure/docker/mongodb/mongod.conf; then
+          echo "✅ Authentication: Enabled" >> security-report.md
+        else
+          echo "❌ Authentication: Not explicitly enabled" >> security-report.md
+        fi
+        
+        if grep -q "bindIpAll: true" infrastructure/docker/mongodb/mongod.conf; then
+          echo "⚠️ Network Binding: All interfaces (consider restricting)" >> security-report.md
+        else
+          echo "✅ Network Binding: Restricted" >> security-report.md
+        fi
+        
+        echo "" >> security-report.md
+        echo "### Recommendations" >> security-report.md
+        echo "- Change all default passwords before production" >> security-report.md
+        echo "- Enable SSL/TLS for production deployments" >> security-report.md
+        echo "- Restrict network access to MongoDB" >> security-report.md
+        echo "- Implement regular security updates" >> security-report.md
+        echo "- Set up monitoring and alerting" >> security-report.md
+        
+        cat security-report.md
+
+    - name: Upload Security Report
+      uses: actions/upload-artifact@v4
+      with:
+        name: mongodb-security-report
+        path: security-report.md
