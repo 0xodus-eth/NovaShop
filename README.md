@@ -170,19 +170,23 @@ NovaShop/
 3. Start the frontend as described above.
 ## Contributing
 
-### Development Workflow
+We welcome contributions to NovaShop! Please see **[CONTRIBUTING.md](CONTRIBUTING.md)** for comprehensive guidelines including:
 
-- **Branching**: Create feature branches (e.g., `feature/product-get-endpoint`) from `main`
-- **Pull Requests**: Submit PRs with clear descriptions and link to Taiga user stories
-- **Code Review**: At least one team member must approve PRs
-- **Testing**: Write unit tests with Mocha/Chai for microservices. Run tests with:
-  ```bash
-  cd services/product-service
-  npm test
-  ```
-- **CI/CD**: Drone CI automatically builds, tests, and deploys on pushes to `main`
+- **Git conventions** and branch naming
+- **Code standards** and testing requirements
+- **Pull request process** and review guidelines
+- **Development environment setup**
+- **Team assignments** and responsibilities
 
-### Task Assignments
+### Quick Start for Contributors
+
+1. **Choose your area**: Each team member has a specific service assignment
+2. **Set up environment**: Follow the setup guide in [CONTRIBUTING.md](CONTRIBUTING.md)
+3. **Create feature branch**: Use format `type/scope-description`
+4. **Make changes**: Follow coding standards and add tests
+5. **Submit PR**: Use the provided PR template and request reviews
+
+### Team Assignments
 
 - **Product Service**: Person 1 (`services/product-service`)
 - **Order Service**: Person 2 (`services/order-service`)
