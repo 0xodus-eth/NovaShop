@@ -40,7 +40,7 @@ export default function HomePage() {
       <h1 className="text-2xl font-bold mb-4">🛒 Product List</h1>
 
       {loading && <p>Loading products...</p>}
-      {error && <p className="text-red-600">Error: {error}</p>}
+      {error && <p role="alert" className="text-red-600">Error: {error}</p>}
       {!loading && !error && products.length === 0 && (
         <p>No products found.</p>
       )}
