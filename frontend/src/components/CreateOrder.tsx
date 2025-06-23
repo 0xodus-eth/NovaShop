@@ -1,17 +1,51 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, FormEvent, ChangeEvent } from 'react';
 
-const CreateOrder = () => {
-  const [products, setProducts] = useState([]);
-  const [selectedProducts, setSelectedProducts] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState('');
+// Type definitions
+interface Product {
+  id: string;
+  name: string;
+  price: number;
+  stock: number;
+}
+
+interface SelectedProduct {
+  productId: string;
+  quantity: number;
+  price: number;
+}
+
+interface CustomerInfo {
+  customerId: string;
+  email: string;
+}
+
+interface OrderData {
+  products: Array<{
+    productId: string;
+    quantity: number;
+    price: number;
+  }>;
+  totalAmount: number;
+  customerInfo: CustomerInfo;
+}
+
+interface ApiResponse {
+  orderId?: string;
+  error?: string;
+}
+
+const CreateOrder: React.FC = () => {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [selectedProducts, setSelectedProducts] = useState<SelectedProduct[]>([]);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [message, setMessage] = useState<string>('');
 
   // Mock products - replace with actual API call
   useEffect(() => {
     // Simulate fetching products from Product Service
-    const mockProducts = [
+    const mockProducts: Product[] = [
       { id: '1', name: 'Laptop', price: 999.99, stock: 10 },
       { id: '2', name: 'Smartphone', price: 699.99, stock: 15 },
       { id: '3', name: 'Headphones', price: 199.99, stock: 20 },
@@ -21,36 +55,40 @@ const CreateOrder = () => {
     setProducts(mockProducts);
   }, []);
 
-  const addProduct = () => {
+  const addProduct = (): void => {
     setSelectedProducts([...selectedProducts, { productId: '', quantity: 1, price: 0 }]);
   };
 
-  const removeProduct = (index) => {
+  const removeProduct = (index: number): void => {
     setSelectedProducts(selectedProducts.filter((_, i) => i !== index));
   };
 
-  const updateSelectedProduct = (index, field, value) => {
+  const updateSelectedProduct = (index: number, field: keyof SelectedProduct, value: string | number): void => {
     const updated = [...selectedProducts];
-    updated[index][field] = value;
-
-    // Update price when product is selected
+    
     if (field === 'productId') {
+      updated[index][field] = value as string;
+      // Update price when product is selected
       const product = products.find(p => p.id === value);
       if (product) {
         updated[index].price = product.price;
       }
+    } else if (field === 'quantity') {
+      updated[index][field] = Number(value);
+    } else if (field === 'price') {
+      updated[index][field] = Number(value);
     }
 
     setSelectedProducts(updated);
   };
 
-  const calculateTotal = () => {
+  const calculateTotal = (): string => {
     return selectedProducts.reduce((total, item) => {
       return total + (item.price * item.quantity);
     }, 0).toFixed(2);
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>): Promise<void> => {
     e.preventDefault();
     setLoading(true);
     setMessage('');
@@ -73,10 +111,10 @@ const CreateOrder = () => {
     }
 
     try {
-      const orderData = {
+      const orderData: OrderData = {
         products: selectedProducts.map(item => ({
           productId: item.productId,
-          quantity: parseInt(item.quantity),
+          quantity: parseInt(item.quantity.toString()),
           price: item.price
         })),
         totalAmount: parseFloat(calculateTotal()),
@@ -95,7 +133,7 @@ const CreateOrder = () => {
         body: JSON.stringify(orderData),
       });
 
-      const result = await response.json();
+      const result: ApiResponse = await response.json();
 
       if (response.ok) {
         setMessage(`Order created successfully! Order ID: ${result.orderId}`);
@@ -104,10 +142,19 @@ const CreateOrder = () => {
         setMessage(`Error: ${result.error || 'Failed to create order'}`);
       }
     } catch (error) {
-      setMessage(`Error: ${error.message}`);
+      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+      setMessage(`Error: ${errorMessage}`);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSelectChange = (index: number) => (e: ChangeEvent<HTMLSelectElement>): void => {
+    updateSelectedProduct(index, 'productId', e.target.value);
+  };
+
+  const handleQuantityChange = (index: number) => (e: ChangeEvent<HTMLInputElement>): void => {
+    updateSelectedProduct(index, 'quantity', e.target.value);
   };
 
   return (
@@ -136,7 +183,7 @@ const CreateOrder = () => {
                   <div className="flex-1">
                     <select
                       value={item.productId}
-                      onChange={(e) => updateSelectedProduct(index, 'productId', e.target.value)}
+                      onChange={handleSelectChange(index)}
                       className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       required
                     >
@@ -158,7 +205,7 @@ const CreateOrder = () => {
                       type="number"
                       min="1"
                       value={item.quantity}
-                      onChange={(e) => updateSelectedProduct(index, 'quantity', e.target.value)}
+                      onChange={handleQuantityChange(index)}
                       className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       placeholder="Qty"
                       required
