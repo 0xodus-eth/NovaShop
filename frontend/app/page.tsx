@@ -52,7 +52,7 @@ export default function HomePage() {
             className="p-3 border rounded shadow-sm flex justify-between"
           >
             <span>{product.name}</span>
-            <span>${product.price}</span>
+            <span>{new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(product.price)}</span>
           </li>
         ))}
       </ul>
