@@ -1,24 +1,104 @@
-const express = require('express');
-const mongoose = require('mongoose');
-const { Kafka } = require('kafkajs');
-const cors = require('cors');
-require('dotenv').config();
+import express, { Request, Response, NextFunction } from 'express';
+import mongoose, { Document, Schema, Model } from 'mongoose';
+import { Kafka, Producer } from 'kafkajs';
+import cors from 'cors';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT: number = parseInt(process.env.PORT || '3001', 10);
+
+// Type definitions aligned with TSX component
+interface CustomerInfo {
+  customerId: string;
+  email: string;
+}
+
+interface OrderProduct {
+  productId: string;
+  quantity: number;
+  price: number;
+}
+
+interface OrderData {
+  products: OrderProduct[];
+  totalAmount: number;
+  customerInfo: CustomerInfo;
+}
+
+// Extended interface for database document
+interface IOrder extends Document {
+  orderId: string;
+  products: OrderProduct[];
+  totalAmount: number;
+  status: 'pending' | 'confirmed' | 'shipped' | 'delivered' | 'cancelled';
+  customerInfo: CustomerInfo;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Kafka event interface
+interface OrderCreatedEvent {
+  orderId: string;
+  customerId: string;
+  products: OrderProduct[];
+  totalAmount: number;
+  status: string;
+  timestamp: string;
+  eventType: 'ORDER_CREATED';
+}
+
+// API Response interfaces
+interface ApiSuccessResponse {
+  success: true;
+  message?: string;
+  orderId?: string;
+  status?: string;
+  totalAmount?: number;
+  createdAt?: Date;
+  data?: any;
+  count?: number;
+}
+
+interface ApiErrorResponse {
+  success: false;
+  error: string;
+}
+
+type ApiResponse = ApiSuccessResponse | ApiErrorResponse;
+
+// Health check response interface
+interface HealthResponse {
+  status: string;
+  service: string;
+  timestamp: string;
+}
+
+// Custom Request interface for order creation
+interface CreateOrderRequest extends Request {
+  body: OrderData;
+}
+
+// Status update request interface
+interface UpdateStatusRequest extends Request {
+  body: {
+    status: 'pending' | 'confirmed' | 'shipped' | 'delivered' | 'cancelled';
+  };
+  params: {
+    orderId: string;
+  };
+}
 
 // Middleware
 app.use(cors());
 app.use(express.json());
 
 // MongoDB Connection
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/novashop', {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-});
+mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/novashop');
 
 // Order Schema
-const orderSchema = new mongoose.Schema({
+const orderSchema = new Schema<IOrder>({
   orderId: {
     type: String,
     required: true,
@@ -70,7 +150,7 @@ const orderSchema = new mongoose.Schema({
   }
 });
 
-const Order = mongoose.model('Order', orderSchema);
+const Order: Model<IOrder> = mongoose.model<IOrder>('Order', orderSchema);
 
 // Kafka Configuration
 const kafka = new Kafka({
@@ -78,10 +158,10 @@ const kafka = new Kafka({
   brokers: [process.env.KAFKA_BROKER || 'localhost:9092'],
 });
 
-const producer = kafka.producer();
+const producer: Producer = kafka.producer();
 
 // Initialize Kafka Producer
-const initKafka = async () => {
+const initKafka = async (): Promise<void> => {
   try {
     await producer.connect();
     console.log('Kafka producer connected successfully');
@@ -91,29 +171,31 @@ const initKafka = async () => {
 };
 
 // Utility function to generate order ID
-const generateOrderId = () => {
+const generateOrderId = (): string => {
   const timestamp = Date.now().toString();
   const random = Math.random().toString(36).substring(2, 8);
   return `ORD-${timestamp}-${random}`.toUpperCase();
 };
 
 // Publish order created event to Kafka
-const publishOrderCreatedEvent = async (orderData) => {
+const publishOrderCreatedEvent = async (orderData: IOrder): Promise<void> => {
   try {
+    const event: OrderCreatedEvent = {
+      orderId: orderData.orderId,
+      customerId: orderData.customerInfo.customerId,
+      products: orderData.products,
+      totalAmount: orderData.totalAmount,
+      status: orderData.status,
+      timestamp: new Date().toISOString(),
+      eventType: 'ORDER_CREATED'
+    };
+
     await producer.send({
       topic: 'order-created',
       messages: [
         {
           key: orderData.orderId,
-          value: JSON.stringify({
-            orderId: orderData.orderId,
-            customerId: orderData.customerInfo.customerId,
-            products: orderData.products,
-            totalAmount: orderData.totalAmount,
-            status: orderData.status,
-            timestamp: new Date().toISOString(),
-            eventType: 'ORDER_CREATED'
-          }),
+          value: JSON.stringify(event),
         },
       ],
     });
@@ -124,10 +206,32 @@ const publishOrderCreatedEvent = async (orderData) => {
   }
 };
 
+// Type guard for order data validation
+const isValidOrderData = (body: any): body is OrderData => {
+  return (
+    body &&
+    typeof body === 'object' &&
+    Array.isArray(body.products) &&
+    body.products.length > 0 &&
+    typeof body.totalAmount === 'number' &&
+    body.totalAmount > 0 &&
+    body.customerInfo &&
+    typeof body.customerInfo.customerId === 'string' &&
+    typeof body.customerInfo.email === 'string' &&
+    body.products.every((product: any) => 
+      typeof product.productId === 'string' &&
+      typeof product.quantity === 'number' &&
+      typeof product.price === 'number' &&
+      product.quantity > 0 &&
+      product.price >= 0
+    )
+  );
+};
+
 // Routes
 
 // Health check endpoint
-app.get('/health', (req, res) => {
+app.get('/health', (req: Request, res: Response<HealthResponse>) => {
   res.status(200).json({ 
     status: 'healthy', 
     service: 'order-service',
@@ -136,7 +240,7 @@ app.get('/health', (req, res) => {
 });
 
 // Get all orders (for testing purposes)
-app.get('/orders', async (req, res) => {
+app.get('/orders', async (req: Request, res: Response<ApiResponse>) => {
   try {
     const orders = await Order.find().sort({ createdAt: -1 });
     res.status(200).json({
@@ -154,7 +258,7 @@ app.get('/orders', async (req, res) => {
 });
 
 // Get specific order by ID
-app.get('/orders/:orderId', async (req, res) => {
+app.get('/orders/:orderId', async (req: Request, res: Response<ApiResponse>) => {
   try {
     const order = await Order.findOne({ orderId: req.params.orderId });
     
@@ -179,44 +283,20 @@ app.get('/orders/:orderId', async (req, res) => {
 });
 
 // Create new order - Main endpoint for the assignment
-app.post('/orders', async (req, res) => {
+app.post('/orders', async (req: CreateOrderRequest, res: Response<ApiResponse>) => {
   try {
+    // Validate request body using type guard
+    if (!isValidOrderData(req.body)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid order data. Please provide valid products, total amount, and customer information'
+      });
+    }
+
     const { products, totalAmount, customerInfo } = req.body;
 
-    // Validation
-    if (!products || !Array.isArray(products) || products.length === 0) {
-      return res.status(400).json({
-        success: false,
-        error: 'Products array is required and cannot be empty'
-      });
-    }
-
-    if (!totalAmount || totalAmount <= 0) {
-      return res.status(400).json({
-        success: false,
-        error: 'Total amount must be greater than 0'
-      });
-    }
-
-    if (!customerInfo || !customerInfo.customerId || !customerInfo.email) {
-      return res.status(400).json({
-        success: false,
-        error: 'Customer information (customerId and email) is required'
-      });
-    }
-
-    // Validate products
-    for (const product of products) {
-      if (!product.productId || !product.quantity || product.quantity <= 0 || !product.price || product.price < 0) {
-        return res.status(400).json({
-          success: false,
-          error: 'Each product must have valid productId, quantity (>0), and price (>=0)'
-        });
-      }
-    }
-
     // Calculate and verify total amount
-    const calculatedTotal = products.reduce((total, product) => {
+    const calculatedTotal = products.reduce((total: number, product: OrderProduct) => {
       return total + (product.price * product.quantity);
     }, 0);
 
@@ -235,7 +315,7 @@ app.post('/orders', async (req, res) => {
       orderId,
       products,
       totalAmount,
-      status: 'pending',
+      status: 'pending' as const,
       customerInfo
     };
 
@@ -244,7 +324,7 @@ app.post('/orders', async (req, res) => {
     await order.save();
 
     // Publish order created event to Kafka
-    await publishOrderCreatedEvent(orderData);
+    await publishOrderCreatedEvent(order);
 
     // Return success response with order ID
     res.status(201).json({
@@ -262,7 +342,7 @@ app.post('/orders', async (req, res) => {
     console.error('Error creating order:', error);
     
     // Handle duplicate order ID (unlikely but possible)
-    if (error.code === 11000) {
+    if (error instanceof Error && 'code' in error && error.code === 11000) {
       return res.status(409).json({
         success: false,
         error: 'Order ID conflict, please try again'
@@ -277,12 +357,14 @@ app.post('/orders', async (req, res) => {
 });
 
 // Update order status (for other services)
-app.patch('/orders/:orderId/status', async (req, res) => {
+app.patch('/orders/:orderId/status', async (req: UpdateStatusRequest, res: Response<ApiResponse>) => {
   try {
     const { status } = req.body;
     const { orderId } = req.params;
 
-    const validStatuses = ['pending', 'confirmed', 'shipped', 'delivered', 'cancelled'];
+    const validStatuses: Array<'pending' | 'confirmed' | 'shipped' | 'delivered' | 'cancelled'> = 
+      ['pending', 'confirmed', 'shipped', 'delivered', 'cancelled'];
+    
     if (!validStatuses.includes(status)) {
       return res.status(400).json({
         success: false,
@@ -319,7 +401,7 @@ app.patch('/orders/:orderId/status', async (req, res) => {
 });
 
 // Error handling middleware
-app.use((err, req, res, next) => {
+app.use((err: Error, req: Request, res: Response<ApiErrorResponse>, next: NextFunction) => {
   console.error('Unhandled error:', err);
   res.status(500).json({
     success: false,
@@ -328,7 +410,7 @@ app.use((err, req, res, next) => {
 });
 
 // 404 handler
-app.use('*', (req, res) => {
+app.use('*', (req: Request, res: Response<ApiErrorResponse>) => {
   res.status(404).json({
     success: false,
     error: 'Endpoint not found'
@@ -336,7 +418,7 @@ app.use('*', (req, res) => {
 });
 
 // Start server
-const startServer = async () => {
+const startServer = async (): Promise<void> => {
   try {
     // Initialize Kafka
     await initKafka();
