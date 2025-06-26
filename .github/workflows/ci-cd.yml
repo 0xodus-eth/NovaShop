@@ -22,7 +22,6 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: ${{ env.NODE_VERSION }}
-        cache: 'npm'
 
     - name: Install dependencies (Frontend)
       if: hashFiles('frontend/package.json') != ''
@@ -49,20 +48,18 @@ jobs:
 
     - name: Validate YAML files
       run: |
+        # Install yamllint
+        pip install yamllint
+        
         # Check for YAML syntax errors
         find . -name "*.yml" -o -name "*.yaml" | while read file; do
           echo "Checking $file..."
-          python3 -c "
-          import yaml
-          import sys
-          try:
-              with open('$file', 'r') as f:
-                  yaml.safe_load(f)
-              print('✅ $file is valid')
-          except Exception as e:
-              print('❌ $file has errors: ' + str(e))
-              sys.exit(1)
-          "
+          if yamllint "$file"; then
+            echo "✅ $file is valid"
+          else
+            echo "❌ $file has syntax errors"
+            exit 1
+          fi
         done
 
     - name: Validate Docker Compose
