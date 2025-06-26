@@ -57,7 +57,9 @@ jobs:
           uv tool install yamllint
 
           # Check for YAML syntax errors
-          find . -name "*.yml" -o -name "*.yaml" | while read file; do
+          find . -name "*.yml" -o -name "*.yaml" | \
+            grep -v node_modules | \
+            while read file; do
             echo "Checking $file..."
             if yamllint "$file"; then
               echo "✅ $file is valid"

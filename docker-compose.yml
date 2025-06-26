@@ -1,4 +1,4 @@
-
+---
 services:
   # MongoDB Database
   mongodb:
