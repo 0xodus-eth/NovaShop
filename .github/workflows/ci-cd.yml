@@ -1,6 +1,7 @@
+---
 name: NovaShop CI/CD Pipeline
 
-on:
+"on":
   push:
     branches: [main, develop]
   pull_request:
@@ -13,64 +14,67 @@ jobs:
   test:
     runs-on: ubuntu-latest
     name: Build and Test
-    
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ env.NODE_VERSION }}
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
 
-    - name: Install dependencies (Frontend)
-      if: hashFiles('frontend/package.json') != ''
-      working-directory: frontend
-      run: npm ci
+      - name: Install dependencies (Frontend)
+        if: hashFiles('frontend/package.json') != ''
+        working-directory: frontend
+        run: npm ci
 
-    - name: Build frontend
-      if: hashFiles('frontend/package.json') != ''
-      working-directory: frontend
-      run: npm run build
+      - name: Build frontend
+        if: hashFiles('frontend/package.json') != ''
+        working-directory: frontend
+        run: npm run build
 
-    - name: Test frontend
-      if: hashFiles('frontend/package.json') != ''
-      working-directory: frontend
-      run: npm test --if-present
+      - name: Test frontend
+        if: hashFiles('frontend/package.json') != ''
+        working-directory: frontend
+        run: npm test --if-present
 
   validate-config:
     runs-on: ubuntu-latest
     name: Validate Configuration
-    
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Validate YAML files
-      run: |
-        # Install yamllint
-        pip install yamllint
-        
-        # Check for YAML syntax errors
-        find . -name "*.yml" -o -name "*.yaml" | while read file; do
-          echo "Checking $file..."
-          if yamllint "$file"; then
-            echo "✅ $file is valid"
-          else
-            echo "❌ $file has syntax errors"
-            exit 1
-          fi
-        done
+      - name: Validate YAML files
+        run: |
+          # Install yamllint using uv
+          uv tool install yamllint
 
-    - name: Validate Docker Compose
-      if: hashFiles('docker-compose.yml') != ''
-      run: |
-        # Install Docker Compose
-        sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-        sudo chmod +x /usr/local/bin/docker-compose
-        
-        # Validate Docker Compose syntax
-        docker-compose config --quiet
+          # Check for YAML syntax errors
+          find . -name "*.yml" -o -name "*.yaml" | while read file; do
+            echo "Checking $file..."
+            if yamllint "$file"; then
+              echo "✅ $file is valid"
+            else
+              echo "❌ $file has syntax errors"
+              exit 1
+            fi
+          done
+
+      - name: Validate Docker Compose
+        if: hashFiles('docker-compose.yml') != ''
+        run: |
+          # Install Docker Compose
+          COMPOSE_URL="https://github.com/docker/compose/releases/latest"
+          COMPOSE_URL="${COMPOSE_URL}/download/docker-compose-$(uname -s)"
+          COMPOSE_URL="${COMPOSE_URL}-$(uname -m)"
+          sudo curl -L "${COMPOSE_URL}" -o /usr/local/bin/docker-compose
+          sudo chmod +x /usr/local/bin/docker-compose
+
+          # Validate Docker Compose syntax
+          docker-compose config --quiet
 
   mongodb-test:
     runs-on: ubuntu-latest
@@ -90,27 +94,34 @@ jobs:
           --health-retries 5
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Install MongoDB Shell
-      run: |
-        wget -qO - https://www.mongodb.org/static/pgp/server-7.0.asc | sudo apt-key add -
-        echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu focal/mongodb-org/7.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-7.0.list
-        sudo apt-get update
-        sudo apt-get install -y mongodb-mongosh
+      - name: Install MongoDB Shell
+        run: |
+          wget -qO - https://www.mongodb.org/static/pgp/server-7.0.asc | \
+            sudo apt-key add -
+          echo "deb [ arch=amd64,arm64 ] \
+            https://repo.mongodb.org/apt/ubuntu \
+            focal/mongodb-org/7.0 multiverse" | \
+            sudo tee /etc/apt/sources.list.d/mongodb-org-7.0.list
+          sudo apt-get update
+          sudo apt-get install -y mongodb-mongosh
 
-    - name: Test MongoDB Connection
-      run: |
-        # Wait for MongoDB to be ready
-        for i in {1..30}; do
-          if mongosh mongodb://admin:password123@localhost:27017/admin --eval "db.runCommand('ping')" &>/dev/null; then
-            echo "MongoDB is ready!"
-            break
-          fi
-          echo "Waiting for MongoDB... ($i/30)"
-          sleep 2
-        done
-        
-        # Test basic connection
-        mongosh mongodb://admin:password123@localhost:27017/admin --eval "print('MongoDB connection successful')"
+      - name: Test MongoDB Connection
+        run: |
+          # Wait for MongoDB to be ready
+          for i in {1..30}; do
+            if mongosh \
+              mongodb://admin:password123@localhost:27017/admin \
+              --eval "db.runCommand('ping')" &>/dev/null; then
+              echo "MongoDB is ready!"
+              break
+            fi
+            echo "Waiting for MongoDB... ($i/30)"
+            sleep 2
+          done
+
+          # Test basic connection
+          mongosh mongodb://admin:password123@localhost:27017/admin \
+            --eval "print('MongoDB connection successful')"

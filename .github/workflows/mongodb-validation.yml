@@ -1,6 +1,7 @@
+---
 name: MongoDB Validation
 
-on:
+"on":
   push:
     paths:
       - 'infrastructure/docker/mongodb/**'
@@ -18,47 +19,56 @@ jobs:
   validate-config:
     runs-on: ubuntu-latest
     name: Validate MongoDB Config
-    
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Validate Docker Compose Files
-      run: |
-        # Install Docker Compose
-        sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-        sudo chmod +x /usr/local/bin/docker-compose
-        
-        # Validate MongoDB compose files
-        if [ -f "infrastructure/docker/mongodb/docker-compose.mongodb.yml" ]; then
-          echo "Validating docker-compose.mongodb.yml..."
-          docker-compose -f infrastructure/docker/mongodb/docker-compose.mongodb.yml config --quiet
-          echo "✅ docker-compose.mongodb.yml is valid"
-        fi
-        
-        if [ -f "infrastructure/docker/mongodb/docker-compose.dev.yml" ]; then
-          echo "Validating docker-compose.dev.yml..."
-          docker-compose -f infrastructure/docker/mongodb/docker-compose.dev.yml config --quiet
-          echo "✅ docker-compose.dev.yml is valid"
-        fi
+      - name: Validate Docker Compose Files
+        run: |
+          # Install Docker Compose
+          COMPOSE_URL="https://github.com/docker/compose/releases/latest"
+          COMPOSE_URL="${COMPOSE_URL}/download/docker-compose-$(uname -s)"
+          COMPOSE_URL="${COMPOSE_URL}-$(uname -m)"
+          sudo curl -L "${COMPOSE_URL}" -o /usr/local/bin/docker-compose
+          sudo chmod +x /usr/local/bin/docker-compose
 
-    - name: Validate Scripts
-      run: |
-        # Test bash script syntax
-        if [ -f "setup-mongodb.sh" ]; then
-          echo "Testing setup-mongodb.sh syntax..."
-          bash -n setup-mongodb.sh
-        fi
-        
-        if [ -f "setup-mongodb-native.sh" ]; then
-          echo "Testing setup-mongodb-native.sh syntax..."
-          bash -n setup-mongodb-native.sh
-        fi
-        
-        if [ -f "mongodb-utils.sh" ]; then
-          echo "Testing mongodb-utils.sh syntax..."
-          bash -n mongodb-utils.sh
-        fi
+          # Validate MongoDB compose files
+          if [ -f \
+            "infrastructure/docker/mongodb/docker-compose.mongodb.yml" ]; then
+            echo "Validating docker-compose.mongodb.yml..."
+            docker-compose \
+              -f infrastructure/docker/mongodb/docker-compose.mongodb.yml \
+              config --quiet
+            echo "✅ docker-compose.mongodb.yml is valid"
+          fi
+
+          if [ -f \
+            "infrastructure/docker/mongodb/docker-compose.dev.yml" ]; then
+            echo "Validating docker-compose.dev.yml..."
+            docker-compose \
+              -f infrastructure/docker/mongodb/docker-compose.dev.yml \
+              config --quiet
+            echo "✅ docker-compose.dev.yml is valid"
+          fi
+
+      - name: Validate Scripts
+        run: |
+          # Test bash script syntax
+          if [ -f "setup-mongodb.sh" ]; then
+            echo "Testing setup-mongodb.sh syntax..."
+            bash -n setup-mongodb.sh
+          fi
+
+          if [ -f "setup-mongodb-native.sh" ]; then
+            echo "Testing setup-mongodb-native.sh syntax..."
+            bash -n setup-mongodb-native.sh
+          fi
+
+          if [ -f "mongodb-utils.sh" ]; then
+            echo "Testing mongodb-utils.sh syntax..."
+            bash -n mongodb-utils.sh
+          fi
 
   test-mongodb:
     runs-on: ubuntu-latest
@@ -78,27 +88,34 @@ jobs:
           --health-retries 5
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Install MongoDB Shell
-      run: |
-        wget -qO - https://www.mongodb.org/static/pgp/server-7.0.asc | sudo apt-key add -
-        echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu focal/mongodb-org/7.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-7.0.list
-        sudo apt-get update
-        sudo apt-get install -y mongodb-mongosh
+      - name: Install MongoDB Shell
+        run: |
+          wget -qO - https://www.mongodb.org/static/pgp/server-7.0.asc | \
+            sudo apt-key add -
+          echo "deb [ arch=amd64,arm64 ] \
+            https://repo.mongodb.org/apt/ubuntu \
+            focal/mongodb-org/7.0 multiverse" | \
+            sudo tee /etc/apt/sources.list.d/mongodb-org-7.0.list
+          sudo apt-get update
+          sudo apt-get install -y mongodb-mongosh
 
-    - name: Test Connection
-      run: |
-        # Wait for MongoDB
-        for i in {1..30}; do
-          if mongosh mongodb://admin:password123@localhost:27017/admin --eval "db.runCommand('ping')" &>/dev/null; then
-            echo "MongoDB is ready!"
-            break
-          fi
-          echo "Waiting for MongoDB... ($i/30)"
-          sleep 2
-        done
-        
-        # Test connection
-        mongosh mongodb://admin:password123@localhost:27017/admin --eval "print('MongoDB connection successful')"
+      - name: Test Connection
+        run: |
+          # Wait for MongoDB
+          for i in {1..30}; do
+            if mongosh \
+              mongodb://admin:password123@localhost:27017/admin \
+              --eval "db.runCommand('ping')" &>/dev/null; then
+              echo "MongoDB is ready!"
+              break
+            fi
+            echo "Waiting for MongoDB... ($i/30)"
+            sleep 2
+          done
+
+          # Test connection
+          mongosh mongodb://admin:password123@localhost:27017/admin \
+            --eval "print('MongoDB connection successful')"
