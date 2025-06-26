@@ -49,6 +49,10 @@ jobs:
 
       - name: Validate YAML files
         run: |
+          # Install uv
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          source $HOME/.cargo/env
+
           # Install yamllint using uv
           uv tool install yamllint
 
