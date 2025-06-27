@@ -10,7 +10,7 @@ NovaShop is a modern e-commerce application built with a microservices architect
 - [Getting Started](#getting-started)
 - [Running Locally](#running-locally)
 - [Contributing](#contributing)
-- [Team](#team)0xodus.hardware395@passinbox.com
+- [Team](#team)
 - [License](#license)
 
 ## Project Overview
