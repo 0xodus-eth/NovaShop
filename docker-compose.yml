@@ -24,6 +24,24 @@ services:
       retries: 5
       start_period: 30s
 
+  # Mongo Express - Web-based MongoDB admin interface
+  mongo-express:
+    image: mongo-express:1.0.0
+    container_name: novashop-mongo-express
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: admin
+      ME_CONFIG_MONGODB_ADMINPASSWORD: password123
+      ME_CONFIG_MONGODB_URL: mongodb://admin:password123@mongodb:27017/?authSource=admin
+      ME_CONFIG_BASICAUTH: false
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - novashop-network
+
   # Zookeeper for Kafka
   zookeeper:
     image: confluentinc/cp-zookeeper:7.4.0
@@ -45,28 +63,9 @@ services:
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: true
-    networks:
-      - novashop-network
-
-  # Product Service
-  product-service:
-    build: ./services/product-service
-    container_name: novashop-product-service
-    depends_on:
-      mongodb:
-        condition: service_healthy
-    ports:
-      - "3000:3000"
-    environment:
-      - NODE_ENV=development
-      - MONGODB_URI=mongodb://product_user:product_pass@mongodb:27017/productdb
-      - PORT=3000
-    volumes:
-      - ./services/product-service:/app
-      - /app/node_modules
     networks:
       - novashop-network
 
@@ -83,7 +82,7 @@ services:
       - "3001:3001"
     environment:
       - NODE_ENV=development
-      - MONGODB_URI=mongodb://order_user:order_pass@mongodb:27017/orderdb
+      - MONGODB_URI=mongodb://admin:password123@mongodb:27017/orderdb?authSource=admin
       - KAFKA_BROKER=kafka:9092
       - PORT=3001
     volumes:
@@ -92,10 +91,10 @@ services:
     networks:
       - novashop-network
 
-  # Payment Service
-  payment-service:
-    build: ./services/payment-service
-    container_name: novashop-payment-service
+  # Product Service (disabled by default - incomplete)
+  product-service:
+    build: ./services/product-service
+    container_name: novashop-product-service
     depends_on:
       mongodb:
         condition: service_healthy
@@ -105,14 +104,40 @@ services:
       - "3002:3002"
     environment:
       - NODE_ENV=development
-      - MONGODB_URI=mongodb://payment_user:payment_pass@mongodb:27017/paymentdb
+      - MONGODB_URI=mongodb://admin:password123@mongodb:27017/productdb?authSource=admin
       - KAFKA_BROKER=kafka:9092
       - PORT=3002
+    volumes:
+      - ./services/product-service:/app
+      - /app/node_modules
+    networks:
+      - novashop-network
+    profiles:
+      - disabled
+
+  # Payment Service (disabled by default - incomplete)
+  payment-service:
+    build: ./services/payment-service
+    container_name: novashop-payment-service
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+    ports:
+      - "3003:3003"
+    environment:
+      - NODE_ENV=development
+      - MONGODB_URI=mongodb://admin:password123@mongodb:27017/paymentdb?authSource=admin
+      - KAFKA_BROKER=kafka:9092
+      - PORT=3003
     volumes:
       - ./services/payment-service:/app
       - /app/node_modules
     networks:
       - novashop-network
+    profiles:
+      - disabled
 
 volumes:
   mongodb_data:
