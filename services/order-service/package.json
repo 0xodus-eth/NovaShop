@@ -4,8 +4,10 @@
   "description": "Order microservice for NovaShop e-commerce platform",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "nodemon server.js",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "dev": "ts-node server.ts",
+    "dev:watch": "nodemon --exec ts-node server.ts",
     "test": "jest"
   },
   "dependencies": {
@@ -17,9 +19,20 @@
   },
   "devDependencies": {
     "nodemon": "^3.0.1",
-    "jest": "^29.7.0"
+    "jest": "^29.7.0",
+    "typescript": "^5.0.0",
+    "ts-node": "^10.9.0",
+    "@types/node": "^20.0.0",
+    "@types/express": "^4.17.0",
+    "@types/cors": "^2.8.0"
   },
-  "keywords": ["microservices", "e-commerce", "orders", "kafka", "mongodb"],
+  "keywords": [
+    "microservices",
+    "e-commerce",
+    "orders",
+    "kafka",
+    "mongodb"
+  ],
   "author": "Your Team",
   "license": "MIT"
 }
