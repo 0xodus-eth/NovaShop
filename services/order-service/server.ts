@@ -202,6 +202,11 @@ const publishOrderCreatedEvent = async (orderData: IOrder): Promise<void> => {
     console.log(`Order created event published for order: ${orderData.orderId}`);
   } catch (error) {
     console.error('Error publishing order created event:', error);
+    // In development mode, don't throw the error - just log it
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('Kafka publishing failed in development mode - continuing without event publishing');
+      return;
+    }
     throw error;
   }
 };
