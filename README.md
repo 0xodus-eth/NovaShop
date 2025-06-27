@@ -1,6 +1,6 @@
 # NovaShop
 
-NovaShop is a simple e-commerce application built with a microservices architecture. It allows users to browse products, create orders, and process payments. The project demonstrates software engineering concepts like microservices, event-driven communication, containerization, and DevOps practices, developed using Agile methodology.
+NovaShop is a modern e-commerce application built with a microservices architecture using Next.js frontend and Node.js/TypeScript backend services. It allows users to browse products, create orders, and process payments. The project demonstrates software engineering concepts like microservices, event-driven communication with Apache Kafka, containerization with Docker, and modern web development practices.
 
 ## Table of Contents
 
@@ -12,31 +12,27 @@ NovaShop is a simple e-commerce application built with a microservices architect
 - [Contributing](#contributing)
 - [Team](#team)0xodus.hardware395@passinbox.com
 - [License](#license)
+
 ## Project Overview
 
-NovaShop consists of a React-based frontend and three Node.js/Express microservices (Product, Order, and Payment) that communicate via Apache Kafka. The system is containerized with Docker, orchestrated with Kubernetes, and monitored using Prometheus and Grafana. MongoDB serves as the database, and the project follows Test-Driven Development (TDD) with Mocha/Chai.
+NovaShop consists of a Next.js frontend and three Node.js/TypeScript microservices (Product, Order, and Payment) that communicate via Apache Kafka. The system is containerized with Docker, with MongoDB serving as the database. Currently, the Order Service is fully functional and implemented in TypeScript, while Product and Payment services are placeholder services for future development.
 
 ## Tech Stack
 
 ### Frontend
-- **React**, Axios, React Router, CSS/Styled-Components, Node.js/NPM
+
+- **Next.js 15**, **React 19**, **TypeScript**, **Tailwind CSS**
 
 ### Microservices
-- **Product Service**: Node.js, Express, MongoDB (Mongoose), Mocha/Chai
-- **Order Service**: Node.js, Express, MongoDB (Mongoose), Kafka (node-rdkafka), Mocha/Chai
-- **Payment Service**: Node.js, Express, MongoDB (Mongoose), Kafka (node-rdkafka), Mocha/Chai
+
+- **Order Service**: Node.js, TypeScript, Express, MongoDB (Mongoose), Kafka (fully implemented)
+- **Product Service**: Placeholder service (not active)
+- **Payment Service**: Placeholder service (not active)
 
 ### Infrastructure
-- **Docker**, Docker Compose, Kubernetes, Apache Kafka, Zookeeper, Prometheus, Grafana
 
-### CI/CD
-- **Gitea** (version control), Drone CI
+- **Docker**, Docker Compose, MongoDB, Apache Kafka, Zookeeper, Mongo Express (Web UI)
 
-### Testing
-- **Mocha/Chai** (backend), Jest (optional for frontend)
-
-### Documentation
-- **Markdown**
 ## Folder Structure
 
 The repository is organized to separate frontend, microservices, and infrastructure for modularity and collaboration. Below is the folder structure:
@@ -102,72 +98,95 @@ NovaShop/
 - **`infrastructure/`**: DevOps configurations for Docker, Kubernetes, Kafka, and monitoring
 - **`docs/`**: Project documentation, including setup guides and API specs
 - **`tests/`**: Shared or integration test utilities
+
 ## Getting Started
 
 ### Prerequisites
 
-- **Node.js** (v14 or later)
+- **Node.js** (v18 or later)
 - **Docker** and Docker Compose
-- **MongoDB** (local or Dockerized)
-- **Apache Kafka** (Dockerized)
-- **Kubernetes** (e.g., Minikube for local development)
 - **Git**
+
+> **⚠️ Important**: It is **highly recommended** to run the backend services (MongoDB, Kafka, Order Service) using **Docker Compose** to avoid configuration and dependency issues. Run the frontend separately for development.
 
 ### Installation
 
 1. Clone the repository:
+
    ```bash
-   git clone https://github.com/your-username/NovaShop.git
+   git clone <repository-url>
    cd NovaShop
    ```
 
-2. Install root-level dependencies (if any):
+2. **Recommended Setup**: Use Docker for backend services:
+
    ```bash
-   npm install
+   # Start infrastructure and backend services
+   docker compose up -d
    ```
-## Running Locally
 
-### Using Docker Compose
-
-1. Start MongoDB, Kafka, and microservices:
-   ```bash
-   docker-compose up -d
-   ```
-   
-   This starts:
-   - MongoDB (port 27017)
-   - Kafka/Zookeeper (ports 9092/2181)
-   - Product Service (port 3000)
-   - Order Service (port 3001)
-   - Payment Service (port 3002)
-
-2. Install and run the frontend:
+3. **Frontend Setup** (run separately):
    ```bash
    cd frontend
    npm install
-   npm start
-   ```
-   
-   The frontend runs on http://localhost:3003.
-
-3. Access the app at http://localhost:3003 to browse products and create orders.
-
-### Manual Setup (Without Docker)
-
-1. Start MongoDB and Kafka locally or use Docker:
-   ```bash
-   docker run -d -p 27017:27017 mongo
-   docker run -d -p 2181:2181 -p 9092:9092 confluentinc/cp-kafka
+   npm run dev
    ```
 
-2. For each microservice (product-service, order-service, payment-service):
+## Running Locally
+
+> **🐳 Recommended Approach**: Use Docker Compose for all backend services to avoid dependency conflicts and setup issues.
+
+### Using Docker Compose (Recommended)
+
+1. **Start backend services with Docker:**
+
    ```bash
-   cd services/product-service
+   docker compose up -d
+   ```
+
+   This starts:
+
+   - MongoDB (port 27017) with authentication
+   - Mongo Express Web UI (port 8081) - Login: `admin` / `pass`
+   - Kafka/Zookeeper (ports 9092/2181)
+   - Order Service (port 3001) - Fully functional TypeScript service
+
+2. **Start the frontend separately:**
+
+   ```bash
+   cd frontend
    npm install
-   npm start
+   npm run dev
+   ```
+
+   The frontend runs on **http://localhost:3000**.
+
+3. **Access the application:**
+   - **Frontend**: http://localhost:3000
+   - **Order Service API**: http://localhost:3001
+   - **MongoDB Web UI**: http://localhost:8081 (admin/pass)
+
+### Alternative: Manual Setup (Not Recommended)
+
+⚠️ **Warning**: Manual setup may cause dependency conflicts and configuration issues. Use Docker Compose instead.
+
+1. Start MongoDB and Kafka manually:
+
+   ```bash
+   ./setup-mongodb.sh dev  # For MongoDB setup
+   # Additional Kafka setup required
+   ```
+
+2. For the Order Service only (others are placeholders):
+
+   ```bash
+   cd services/order-service
+   npm install
+   npm run dev
    ```
 
 3. Start the frontend as described above.
+
 ## Contributing
 
 We welcome contributions to NovaShop! Please see **[CONTRIBUTING.md](CONTRIBUTING.md)** for comprehensive guidelines including:
@@ -185,6 +204,47 @@ We welcome contributions to NovaShop! Please see **[CONTRIBUTING.md](CONTRIBUTIN
 3. **Create feature branch**: Use format `type/scope-description`
 4. **Make changes**: Follow coding standards and add tests
 5. **Submit PR**: Use the provided PR template and request reviews
+
+### 🚨 Important: Git Security Practices
+
+> **⚠️ NEVER commit sensitive files to Git!**
+
+**Critical Guidelines:**
+
+- **NEVER push `.env` files** - These contain sensitive credentials and API keys
+- **NEVER push `node_modules/`** - These are generated dependencies and should be excluded
+- **Always check `.gitignore`** before adding new services or environment files
+
+**Current .gitignore locations:**
+
+```
+services/order-service/.env
+services/order-service/node_modules/
+frontend/node_modules/
+frontend/.env*
+```
+
+**When adding new services:**
+
+1. **Check the root `.gitignore`** file to see existing patterns
+2. **Add your service's sensitive files** to `.gitignore`:
+   ```gitignore
+   services/your-service/.env
+   services/your-service/node_modules/
+   ```
+3. **Update the root `.gitignore`** if you add new directories or file types
+4. **Use `.env.example`** files to document required environment variables (without values)
+
+**Before every commit:**
+
+```bash
+# Check what files you're about to commit
+git status
+git diff --cached
+
+# Verify no sensitive files are staged
+git ls-files | grep -E "\.(env|key|pem)$|node_modules"
+```
 
 ### Team Assignments
 
@@ -211,12 +271,19 @@ This project is licensed under the MIT License. See `LICENSE` for details.
 ## Notes for Developers
 
 ### Important Resources
+
 - **API Documentation**: Refer to `docs/api-specs.md` for endpoint details
 - **Setup Issues**: Check `docs/setup.md` for troubleshooting
 - **Taiga**: Track user stories and tasks in Taiga
 
 ### Development Tips
-- **Local Development**: Use `docker-compose.yml` for a quick setup. Ensure ports 3000–3003, 27017, 9092, and 2181 are free
-- **Kubernetes**: For production-like deployment, apply manifests in `infrastructure/kubernetes/` using `kubectl`
+
+- **Docker Development**: Use `docker compose up -d` for backend services. Run frontend separately with `npm run dev`
+- **MongoDB Access**: Use Mongo Express at http://localhost:8081 (admin/pass) for database management
+- **Port Requirements**: Ensure ports 3000 (frontend), 3001 (order-service), 8081 (mongo-express), 27017 (mongodb), and 9092 (kafka) are available
+- **Service Status**: Only Order Service is fully implemented. Product and Payment services are placeholders
+- **TypeScript**: All new backend development should use TypeScript for better type safety
+- **🔒 Security**: Always check `.gitignore` before committing. Never push `.env` files or `node_modules/` to Git
+- **Environment Files**: Use `.env.example` files to document required variables without exposing sensitive values
 
 ---

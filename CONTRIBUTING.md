@@ -1,213 +1,215 @@
-# Contributing to NovaShop
+# Contributing to NovaShop 🚀
 
-Welcome to the NovaShop project! This document provides comprehensive guidelines for contributing to our microservices e-commerce application. Please read this carefully before making your first contribution.
+Welcome to NovaShop! This guide will help you contribute effectively to our Next.js and TypeScript microservices e-commerce project.
 
-## Table of Contents
+## 📋 Table of Contents
 
-- [Project Overview](#project-overview)
-- [Team Assignments](#team-assignments)
-- [Development Workflow](#development-workflow)
-- [Git Conventions](#git-conventions)
-- [Branch Naming Convention](#branch-naming-convention)
-- [Commit Message Convention](#commit-message-convention)
+- [Quick Start](#quick-start)
+- [Project Structure](#project-structure)
+- [Git Workflow](#git-workflow)
 - [Code Standards](#code-standards)
-- [Testing Requirements](#testing-requirements)
 - [Pull Request Process](#pull-request-process)
-- [Development Environment Setup](#development-environment-setup)
-- [API Guidelines](#api-guidelines)
-- [Database Guidelines](#database-guidelines)
-- [Communication Guidelines](#communication-guidelines)
+- [Development Environment](#development-environment)
+- [Security Guidelines](#security-guidelines)
 
-## Project Overview
+## 🚀 Quick Start
 
-NovaShop is a microservices-based e-commerce application with:
-- **Frontend**: React-based user interface
-- **Backend**: Three Node.js/Express microservices
-- **Database**: MongoDB with separate databases per service
-- **Communication**: Apache Kafka for event-driven messaging
-- **Infrastructure**: Docker, Kubernetes, monitoring with Prometheus/Grafana
+1. **Clone and setup:**
 
-## Team Assignments
+   ```bash
+   git clone <repository-url>
+   cd NovaShop
+   docker compose up -d  # Start backend services
+   ```
 
-| Team Member | Responsibility | Focus Area |
-|-------------|---------------|------------|
-| **Person 1** | Product Service | `services/product-service/` |
-| **Person 2** | Order Service | `services/order-service/` |
-| **Person 3** | Payment Service | `services/payment-service/` |
-| **Person 4** | Frontend | `frontend/` |
-| **Person 5** | DevOps | `infrastructure/`, CI/CD, monitoring |
+2. **Frontend development:**
 
-## Development Workflow
+   ```bash
+   cd frontend
+   npm install
+   npm run dev
+   ```
 
-### 1. Project Board Management
-- Use **Taiga** for task tracking
-- Each task should be linked to a user story
-- Update task status regularly: `To Do` → `In Progress` → `Review` → `Done`
+3. **Service development:**
+   ```bash
+   cd services/order-service  # Only order-service is active
+   npm install
+   npm run dev
+   ```
 
-### 2. Branch Strategy
-We follow **GitFlow** with these main branches:
-- `main`: Production-ready code
-- `develop`: Integration branch for development
-- `feature/*`: Feature development branches
-- `hotfix/*`: Critical bug fixes
-- `release/*`: Release preparation branches
+## 🏗️ Project Structure
 
-## Git Conventions
+### Current Status
 
-### Branch Naming Convention
+- **✅ Frontend**: Next.js 15 + React 19 + TypeScript + Tailwind CSS
+- **✅ Order Service**: Fully functional TypeScript service
+- **🚧 Product Service**: Placeholder (not active)
+- **🚧 Payment Service**: Placeholder (not active)
+- **✅ Infrastructure**: Docker, MongoDB, Kafka, Mongo Express
 
-Based on the [simplified Git convention](https://dev.to/varbsan/a-simplified-convention-for-naming-branches-and-commits-in-git-il4), use this format:
+### Team Areas
+
+- **Frontend**: `frontend/` - Next.js application
+- **Order Service**: `services/order-service/` - Active TypeScript microservice
+- **Product Service**: `services/product-service/` - Future development
+- **Payment Service**: `services/payment-service/` - Future development
+- **Infrastructure**: `infrastructure/`, `docker-compose.yml` - DevOps configuration
+
+## 🌿 Git Workflow
+
+Based on the [simplified Git convention](https://dev.to/varbsan/a-simplified-convention-for-naming-branches-and-commits-in-git-il4)
+
+### Branch Naming
 
 ```
 <type>/<scope>-<description>
 ```
 
-#### Branch Types:
-- `feature/` - New features or enhancements
-- `bugfix/` - Bug fixes
-- `hotfix/` - Critical production fixes
-- `release/` - Release preparation
-- `chore/` - Maintenance tasks (docs, deps, etc.)
-- `refactor/` - Code refactoring without functionality changes
-- `test/` - Adding or updating tests
+**Types:** `feature/`, `bugfix/`, `hotfix/`, `chore/`, `docs/`  
+**Scopes:** `frontend`, `order`, `product`, `payment`, `infra`
 
-#### Scope (Service Areas):
-- `product` - Product Service related
-- `order` - Order Service related
-- `payment` - Payment Service related
-- `frontend` - Frontend/UI related
-- `infra` - Infrastructure/DevOps related
-- `docs` - Documentation changes
-- `config` - Configuration changes
+**Examples:**
 
-#### Examples:
 ```bash
-feature/product-get-all-products
-feature/order-create-order-endpoint
-feature/frontend-product-listing-page
-bugfix/payment-validation-error
-hotfix/order-memory-leak
-chore/infra-update-docker-compose
-refactor/product-database-queries
-test/order-integration-tests
+feature/frontend-order-form
+feature/order-create-endpoint
+bugfix/frontend-navigation
+chore/infra-docker-update
+docs/api-documentation
 ```
 
-### Commit Message Convention
+### Commit Messages
 
-Follow this structure:
 ```
 <type>(<scope>): <subject>
 
-<body>
+<optional body>
 
-<footer>
+<optional footer>
 ```
 
-#### Commit Types:
-- `feat`: New feature
-- `fix`: Bug fix
-- `docs`: Documentation changes
-- `style`: Code style changes (formatting, missing semicolons, etc.)
-- `refactor`: Code refactoring
-- `test`: Adding/updating tests
-- `chore`: Maintenance tasks
-- `perf`: Performance improvements
-- `ci`: CI/CD related changes
+**Examples:**
 
-#### Examples:
 ```bash
-feat(product): add product search endpoint
-
-Implement search functionality with filters for category, price range, and name.
-Includes pagination and sorting options.
-
-Closes #123
-
-fix(order): resolve order total calculation bug
-
-Fixed issue where tax calculation was applied twice for international orders.
-Added unit tests to prevent regression.
-
-Fixes #145
-
+feat(frontend): add order creation form
+fix(order): resolve database connection issue
 docs(readme): update setup instructions
-
-Added detailed MongoDB setup steps and troubleshooting section.
-Included links to additional resources.
-
-chore(deps): update express to v4.18.2
-
-Security update to address vulnerability CVE-2023-XXXX
+chore(deps): update typescript to 5.3.0
 ```
 
-## Code Standards
+## 💻 Code Standards
 
-### JavaScript/Node.js Standards
+### TypeScript (Backend Services)
 
-#### 1. Code Style
-- Use **ESLint** with Airbnb configuration
-- Use **Prettier** for code formatting
-- Use **2 spaces** for indentation
-- Maximum line length: **100 characters**
+```typescript
+// Use TypeScript for all new backend code
+interface OrderData {
+  productId: string;
+  quantity: number;
+  userId: string;
+}
 
-#### 2. File Structure
-```javascript
-// 1. Node.js imports
-const express = require('express');
-const mongoose = require('mongoose');
-
-// 2. Local imports
-const Product = require('../models/Product');
-const { validateProduct } = require('../middleware/validation');
-
-// 3. Constants
-const DEFAULT_PAGE_SIZE = 10;
-
-// 4. Implementation
-```
-
-#### 3. Naming Conventions
-- **Variables/Functions**: camelCase (`getUserById`, `productList`)
-- **Constants**: UPPER_SNAKE_CASE (`API_BASE_URL`, `MAX_RETRY_ATTEMPTS`)
-- **Classes**: PascalCase (`ProductService`, `OrderController`)
-- **Files**: kebab-case (`user-controller.js`, `product-model.js`)
-
-#### 4. Function Documentation
-```javascript
-/**
- * Retrieves a product by its ID
- * @param {string} productId - The unique identifier for the product
- * @param {Object} options - Optional parameters
- * @param {boolean} options.includeInactive - Include inactive products
- * @returns {Promise<Object|null>} The product object or null if not found
- * @throws {ValidationError} When productId is invalid
- */
-async function getProductById(productId, options = {}) {
-  // Implementation
+export class OrderService {
+  async createOrder(data: OrderData): Promise<Order> {
+    // Implementation with proper error handling
+  }
 }
 ```
 
-### React/Frontend Standards
+### Next.js/React (Frontend)
 
-#### 1. Component Structure
-```jsx
-// 1. React imports
-import React, { useState, useEffect } from 'react';
+```tsx
+// Use TypeScript components
+interface OrderFormProps {
+  onSubmit: (order: OrderData) => void;
+  loading?: boolean;
+}
 
-// 2. Third-party imports
-import axios from 'axios';
+export const OrderForm: React.FC<OrderFormProps> = ({ onSubmit, loading }) => {
+  // Component implementation
+};
+```
 
-// 3. Local imports
-import './ProductList.css';
-import ProductCard from '../ProductCard/ProductCard';
+### Code Quality
+
+- **ESLint + Prettier** for formatting
+- **Descriptive variable names** and function names
+- **Error handling** for all async operations
+- **Type definitions** for all interfaces and functions
+
+## 📝 Pull Request Process
+
+### PR Template (Simplified)
+
+- **Description**: What does this PR do?
+- **Type**: Feature, bugfix, docs, etc.
+- **Service**: Which part of the project?
+- **Testing**: Unit tests, manual testing completed
+- **Screenshots**: For UI changes
+
+### Review Requirements
+
+- **Self-review** completed
+- **Tests pass** locally
+- **No sensitive files** (.env, node_modules) committed
+- **Documentation updated** if needed
+
+## 🛠️ Development Environment
+
+### Prerequisites
+
+- **Node.js 18+**
+- **Docker & Docker Compose**
+- **Git**
+
+### Setup Steps
+
+```bash
+# 1. Clone repository
+git clone <repository-url>
+cd NovaShop
+
+# 2. Start backend services (RECOMMENDED)
+docker compose up -d
+
+# 3. Access services
+# - MongoDB Web UI: http://localhost:8081 (admin/pass)
+# - Order Service: http://localhost:3001
+# - Frontend: http://localhost:3000 (after step 4)
+
+# 4. Start frontend separately
+cd frontend
+npm install
+npm run dev
+```
+
+### Environment Configuration
+
+**Order Service** (`.env`):
+
+```env
+NODE_ENV=development
+PORT=3001
+MONGODB_URI=mongodb://admin:password123@localhost:27017/orderdb?authSource=admin
+KAFKA_BROKER=localhost:9092
+```
+
+**Docker vs Local Development:**
+
+- **Recommended**: Use Docker for all backend services
+- **Frontend**: Run locally for better development experience
+- **Avoid**: Manual setup of MongoDB/Kafka (complex and error-prone)
+  import './ProductList.css';
+  import ProductCard from '../ProductCard/ProductCard';
 
 // 4. Component
 const ProductList = () => {
-  // Implementation
+// Implementation
 };
 
 export default ProductList;
-```
+
+````
 
 #### 2. Naming Conventions
 - **Components**: PascalCase (`ProductList`, `OrderForm`)
@@ -248,13 +250,14 @@ describe('Product Service', () => {
     });
   });
 });
-```
+````
 
 ## Pull Request Process
 
 ### 1. Before Creating a PR
 
 #### Pre-PR Checklist:
+
 - [ ] Code follows style guidelines
 - [ ] Unit tests pass locally
 - [ ] Integration tests pass locally
@@ -264,6 +267,7 @@ describe('Product Service', () => {
 - [ ] API changes documented in `docs/api-specs.md`
 
 #### Commands to Run:
+
 ```bash
 # Run tests
 npm test
@@ -281,124 +285,148 @@ npm run build
 ### 2. PR Title and Description
 
 #### PR Title Format:
+
 ```
 <type>(<scope>): <description>
 ```
 
 #### PR Description Template:
-```markdown
+
+````markdown
 ## Description
+
 Brief description of changes made.
 
 ## Type of Change
+
 - [ ] Bug fix (non-breaking change that fixes an issue)
 - [ ] New feature (non-breaking change that adds functionality)
 - [ ] Breaking change (fix or feature that would cause existing functionality to not work as expected)
 - [ ] Documentation update
 
 ## Related Issues
-Closes #[issue-number]
-Related to #[issue-number]
 
-## Testing
-- [ ] Unit tests added/updated
-- [ ] Integration tests added/updated
-- [ ] Manual testing completed
+## 🔒 Security Guidelines
 
-## Screenshots (if applicable)
-Add screenshots for UI changes.
+### Critical Rules
 
-## Checklist
-- [ ] Code follows style guidelines
-- [ ] Self-review completed
-- [ ] Tests pass locally
-- [ ] Documentation updated
-- [ ] No breaking changes (or clearly documented)
+> **⚠️ NEVER commit sensitive files!**
+
+- **NEVER push `.env` files** - Contains credentials and secrets
+- **NEVER push `node_modules/`** - Large generated dependencies
+- **ALWAYS check `.gitignore`** before adding new services
+
+### Current .gitignore Patterns
+
+```gitignore
+services/order-service/.env
+services/order-service/node_modules/
+frontend/.env*
+frontend/node_modules/
+```
+````
+
+### Adding New Services
+
+1. **Check existing patterns** in root `.gitignore`
+2. **Add your patterns:**
+   ```gitignore
+   services/your-service/.env
+   services/your-service/node_modules/
+   ```
+3. **Use `.env.example`** files for documentation (no sensitive values)
+
+### Pre-Commit Security Check
+
+```bash
+# Check what you're about to commit
+git status
+git diff --cached
+
+# Verify no sensitive files
+git ls-files | grep -E "\.(env|key|pem)$|node_modules"
 ```
 
-### 3. Review Process
+## 🧪 Testing
 
-#### Reviewers:
-- **Product Service**: Person 1 (required) + 1 other team member
-- **Order Service**: Person 2 (required) + 1 other team member
-- **Payment Service**: Person 3 (required) + 1 other team member
-- **Frontend**: Person 4 (required) + 1 other team member
-- **Infrastructure**: Person 5 (required) + 1 other team member
+### Running Tests
 
-#### Review Criteria:
-- [ ] Code quality and readability
-- [ ] Performance considerations
-- [ ] Security implications
-- [ ] Test coverage
-- [ ] Documentation completeness
-- [ ] API consistency
-
-### 4. Merge Requirements
-- [ ] At least 2 approvals (including service owner)
-- [ ] All CI/CD checks pass
-- [ ] No merge conflicts
-- [ ] Up-to-date with target branch
-
-## Development Environment Setup
-
-### 1. Prerequisites
 ```bash
-# Node.js (v18 or later)
-node --version
-
-# Docker and Docker Compose
-docker --version
-docker-compose --version
-
-# Git
-git --version
-```
-
-### 2. Initial Setup
-```bash
-# Clone repository
-git clone https://github.com/your-username/NovaShop.git
-cd NovaShop
-
-# Set up MongoDB
-./setup-mongodb.sh dev
-
-# Set up your service (example: product-service)
-cd services/product-service
-npm install
-cp .env.example .env
-# Edit .env with your configuration
-
-# Run tests
+# Frontend tests
+cd frontend
 npm test
 
-# Start development server
-npm run dev
+# Order service tests
+cd services/order-service
+npm test
+
+# Run all tests
+npm run test:all
 ```
 
-### 3. Environment Variables
+### Test Requirements
 
-#### Product Service (`.env`):
+- **Unit tests** for new functions/components
+- **Integration tests** for API endpoints
+- **Manual testing** for UI changes
+- **All tests pass** before PR submission
+
+## 🐛 Troubleshooting
+
+### Common Issues
+
+**Container won't start:**
+
 ```bash
-NODE_ENV=development
-PORT=3000
-MONGODB_URI=mongodb://product_user:product_pass@localhost:27017/productdb
-JWT_SECRET=your-jwt-secret
-LOG_LEVEL=debug
+docker compose logs <service-name>
+docker compose restart <service-name>
 ```
 
-#### Order Service (`.env`):
+**Port conflicts:**
+
 ```bash
-NODE_ENV=development
-PORT=3001
-MONGODB_URI=mongodb://order_user:order_pass@localhost:27017/orderdb
-KAFKA_BROKER=localhost:9092
-PRODUCT_SERVICE_URL=http://localhost:3000
-JWT_SECRET=your-jwt-secret
-LOG_LEVEL=debug
+sudo netstat -tlnp | grep <port>
+sudo kill -9 <pid>
 ```
+
+**MongoDB connection issues:**
+
+```bash
+# Check container health
+docker compose ps
+# View logs
+docker compose logs mongodb
+```
+
+**Clean restart:**
+
+```bash
+docker compose down -v
+docker compose up -d --build
+```
+
+## 📚 Resources
+
+- **MongoDB Web UI**: http://localhost:8081 (admin/pass)
+- **Order Service API**: http://localhost:3001
+- **Project README**: [README.md](./README.md)
+- **API Documentation**: `docs/` folder
+
+## 🤝 Getting Help
+
+1. **Check existing issues** on GitHub
+2. **Review this guide** and README
+3. **Ask in team discussions**
+4. **Create detailed issue** with logs and screenshots
+
+---
+
+**Thank you for contributing to NovaShop!** 🎉
+
+For questions about this guide, please create an issue or reach out to the maintainers.
 
 #### Payment Service (`.env`):
+
 ```bash
 NODE_ENV=development
 PORT=3002
@@ -411,6 +439,7 @@ LOG_LEVEL=debug
 ```
 
 #### Frontend (`.env`):
+
 ```bash
 REACT_APP_API_BASE_URL=http://localhost:3000
 REACT_APP_ORDER_SERVICE_URL=http://localhost:3001
@@ -421,6 +450,7 @@ REACT_APP_ENVIRONMENT=development
 ## API Guidelines
 
 ### 1. RESTful Conventions
+
 ```bash
 # Products
 GET    /api/products           # Get all products
@@ -442,6 +472,7 @@ GET    /api/payments/:id       # Get payment details
 ```
 
 ### 2. Response Format
+
 ```json
 {
   "success": true,
@@ -461,6 +492,7 @@ GET    /api/payments/:id       # Get payment details
 ```
 
 ### 3. Error Response Format
+
 ```json
 {
   "success": false,
@@ -480,6 +512,7 @@ GET    /api/payments/:id       # Get payment details
 ## Database Guidelines
 
 ### 1. Schema Design
+
 ```javascript
 // Product Schema
 const productSchema = {
@@ -491,113 +524,10 @@ const productSchema = {
   images: [{ type: String }],
   isActive: { type: Boolean, default: true },
   createdAt: { type: Date, default: Date.now },
-  updatedAt: { type: Date, default: Date.now }
+  updatedAt: { type: Date, default: Date.now },
 };
 ```
 
 ### 2. Data Validation
+
 - Use Mongoose validators
-- Validate on both client and server
-- Sanitize user inputs
-- Use schema-based validation
-
-### 3. Indexing Strategy
-```javascript
-// Product indexes
-productSchema.index({ name: 'text', description: 'text' });
-productSchema.index({ category: 1, price: 1 });
-productSchema.index({ createdAt: -1 });
-```
-
-## Communication Guidelines
-
-### 1. Daily Standup
-- **Time**: 9:00 AM daily
-- **Duration**: 15 minutes max
-- **Format**: What did I do yesterday? What will I do today? Any blockers?
-
-### 2. Code Review Communication
-- Be constructive and respectful
-- Explain the "why" behind suggestions
-- Acknowledge good practices
-- Use GitHub review features effectively
-
-### 3. Issue Reporting
-```markdown
-**Bug Report:**
-- Service: [Product/Order/Payment/Frontend/Infrastructure]
-- Environment: [Development/Staging/Production]
-- Browser/OS: [if applicable]
-- Steps to reproduce
-- Expected behavior
-- Actual behavior
-- Screenshots/logs
-
-**Feature Request:**
-- Service: [Product/Order/Payment/Frontend/Infrastructure]
-- User story: As a [user type], I want [goal] so that [benefit]
-- Acceptance criteria
-- Priority: [High/Medium/Low]
-```
-
-### 4. Documentation Updates
-- Update relevant documentation with code changes
-- Use clear, concise language
-- Include examples where helpful
-- Keep API documentation current
-
-## Troubleshooting
-
-### Common Issues
-
-#### 1. MongoDB Connection Issues
-```bash
-# Check MongoDB status
-docker ps | grep mongo
-
-# View MongoDB logs
-docker logs novashop-mongodb
-
-# Test connection
-mongosh mongodb://admin:password123@localhost:27017/admin
-```
-
-#### 2. Port Conflicts
-```bash
-# Check what's using a port
-lsof -i :3000
-
-# Kill process using port
-kill -9 $(lsof -t -i:3000)
-```
-
-#### 3. Docker Issues
-```bash
-# Clean up containers
-docker-compose down
-docker system prune -f
-
-# Rebuild containers
-docker-compose build --no-cache
-```
-
-### Getting Help
-1. Check this contributing guide
-2. Search existing GitHub issues
-3. Ask in team chat
-4. Create a new issue with detailed description
-5. Schedule a pair programming session
-
-## Resources
-
-- [Project README](./README.md)
-- [API Documentation](./docs/api-specs.md)
-- [Architecture Overview](./docs/architecture.md)
-- [MongoDB Setup Guide](./docs/mongodb-setup.md)
-- [CI/CD Pipeline Documentation](./docs/ci-cd-pipeline.md)
-
----
-
-Thank you for contributing to NovaShop! 🚀
-
-For questions about this guide, please create an issue or contact the project maintainers.

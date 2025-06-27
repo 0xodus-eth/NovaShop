@@ -1,0 +1,3 @@
+services/order-service/node_modules
+services/order-service/.env
+services/order-service/dist

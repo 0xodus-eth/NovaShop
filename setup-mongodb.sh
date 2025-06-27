@@ -39,20 +39,11 @@ print_header() {
 check_docker() {
     # Check multiple possible Docker locations
     local docker_cmd=""
-    local compose_cmd=""
     
     # Try different Docker command variations
     for cmd in docker /usr/bin/docker /usr/local/bin/docker docker.exe; do
         if command -v $cmd &> /dev/null; then
             docker_cmd=$cmd
-            break
-        fi
-    done
-    
-    # Try different Docker Compose command variations
-    for cmd in docker-compose "docker compose" /usr/bin/docker-compose /usr/local/bin/docker-compose docker-compose.exe; do
-        if command -v $cmd &> /dev/null || [[ "$cmd" == "docker compose" ]] && command -v docker &> /dev/null; then
-            compose_cmd=$cmd
             break
         fi
     done
@@ -63,13 +54,18 @@ check_docker() {
         exit 1
     fi
     
-    if [ -z "$compose_cmd" ]; then
+    # Check for Docker Compose
+    if docker compose version &> /dev/null; then
+        print_success "Docker and Docker Compose are available"
+        print_info "Using: docker and docker compose"
+    elif command -v docker-compose &> /dev/null; then
+        print_success "Docker and Docker Compose are available"
+        print_info "Using: docker and docker-compose"
+    else
         print_error "Docker Compose is not installed or not in PATH."
         print_info "Please install Docker Compose first: https://docs.docker.com/compose/install/"
         exit 1
     fi
-    
-    print_success "Docker and Docker Compose are available"
     
     # Test Docker daemon
     if ! $docker_cmd ps &> /dev/null; then
@@ -84,7 +80,7 @@ check_docker() {
 check_port() {
     if lsof -Pi :27017 -sTCP:LISTEN -t >/dev/null 2>&1; then
         print_warning "Port 27017 is already in use. You may need to stop existing MongoDB service."
-        read -p "Do you want to continue anyway? (y/N): " -n 1 -r
+        read -p "Do you want to continue anyway? [y/N]: " -n 1 -r
         echo
         if [[ ! $REPLY =~ ^[Yy]$ ]]; then
             exit 1
@@ -101,16 +97,20 @@ setup_dev() {
     cd infrastructure/docker/mongodb
     
     print_info "Starting MongoDB with Mongo Express..."
-    docker-compose -f docker-compose.dev.yml up -d
+    if docker compose version &> /dev/null; then
+        docker compose -f docker-compose.dev.yml up -d
+    else
+        docker-compose -f docker-compose.dev.yml up -d
+    fi
     
     print_info "Waiting for MongoDB to be ready..."
     sleep 15
     
     # Check if MongoDB is running
-    if docker exec novashop-mongodb-dev mongosh --eval "db.runCommand('ping')" &>/dev/null; then
+    if docker exec novashop-mongodb-dev mongosh --eval 'db.runCommand("ping")' &>/dev/null; then
         print_success "MongoDB is running successfully!"
         print_info "MongoDB URL: mongodb://localhost:27017"
-        print_info "Mongo Express: http://localhost:8081 (admin/admin123)"
+        print_info "Mongo Express: http://localhost:8081 [admin/admin123]"
         print_info ""
         print_info "Database connections:"
         print_info "  Product DB: mongodb://product_user:product_pass@localhost:27017/productdb"
@@ -129,13 +129,17 @@ setup_standalone() {
     cd infrastructure/docker/mongodb
     
     print_info "Starting MongoDB..."
-    docker-compose -f docker-compose.mongodb.yml up -d
+    if docker compose version &> /dev/null; then
+        docker compose -f docker-compose.mongodb.yml up -d
+    else
+        docker-compose -f docker-compose.mongodb.yml up -d
+    fi
     
     print_info "Waiting for MongoDB to be ready..."
     sleep 15
     
     # Check if MongoDB is running
-    if docker exec novashop-mongodb mongosh --eval "db.runCommand('ping')" &>/dev/null; then
+    if docker exec novashop-mongodb mongosh --eval 'db.runCommand("ping")' &>/dev/null; then
         print_success "MongoDB is running successfully!"
         print_info "MongoDB URL: mongodb://localhost:27017"
     else
@@ -149,8 +153,8 @@ test_connection() {
     print_info "Testing MongoDB connection..."
     
     # Test basic connection
-    if docker exec novashop-mongodb mongosh --eval "db.runCommand('ping')" &>/dev/null ||
-       docker exec novashop-mongodb-dev mongosh --eval "db.runCommand('ping')" &>/dev/null; then
+    if docker exec novashop-mongodb mongosh --eval 'db.runCommand("ping")' &>/dev/null ||
+       docker exec novashop-mongodb-dev mongosh --eval 'db.runCommand("ping")' &>/dev/null; then
         print_success "MongoDB connection successful!"
         
         # Test databases
@@ -170,7 +174,7 @@ show_usage() {
     echo "Usage: $0 [OPTION]"
     echo ""
     echo "Options:"
-    echo "  dev         Setup MongoDB for development (with Mongo Express)"
+    echo "  dev         Setup MongoDB for development [with Mongo Express]"
     echo "  standalone  Setup standalone MongoDB"
     echo "  test        Test MongoDB connection"
     echo "  help        Show this help message"
