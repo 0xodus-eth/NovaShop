@@ -2,6 +2,8 @@ import React from 'react';
 import { Minus, Plus, Trash2, ShoppingBag, ArrowRight } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 
+//this is a comment
+
 const Cart: React.FC = () => {
   const { items, updateQuantity, removeFromCart, clearCart, getTotalPrice } = useCart();
 
