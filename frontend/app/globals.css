@@ -1,0 +1,121 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+select {
+  color: #222;          /* Dark text color */
+  background-color: #fff; /* White background */
+  border: 1px solid #ccc; /* Optional: border to match buttons */
+  padding: 0.4em 0.6em;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-family: inherit; /* Use the same font as body */
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+select:focus {
+  border-color: #2563eb; /* Blue border on focus */
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.3); /* subtle blue glow */
+}
+
+/* Make all input fields (including quantity) readable and styled */
+input[type="number"],
+input[type="text"],
+input[type="email"],
+input[type="password"] {
+  color: #222 !important;
+  background-color: #fff !important;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  padding: 0.4em 0.7em;
+  font-size: 1rem;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+input[type="number"]:focus,
+input[type="text"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.13);
+}
+
+/* Style select and option as before */
+select, option {
+  color: #222 !important;
+  background-color: #fff !important;
+  font-weight: 500;
+}
+
+/* Style price and total amount displays */
+.price-display,
+.total-amount {
+  color: #222;
+  background: #f3f4f6;
+  padding: 0.2em 0.7em;
+  border-radius: 6px;
+  font-weight: bold;
+  font-size: 1.1em;
+}
+
+/* Optional: Style form labels for clarity */
+label {
+  color: #2563eb;
+  font-weight: 600;
+  margin-bottom: 0.2em;
+  display: block;
+}
+
+/* Style the container holding the total amount */
+.total-amount-container {
+  border-top: 1px solid #d1d5db; /* light gray border */
+  padding-top: 1rem;
+  margin-top: 1rem;
+}
+
+/* Style the flex container for label and amount */
+.total-amount-flex {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 1.25rem; /* larger font size */
+  font-weight: 700;   /* bolder font */
+  color: #111827;     /* darker text color (almost black) */
+}
+
+/* Style the label */
+.total-amount-label {
+  color: #1f2937; /* dark gray for label */
+}
+
+/* Style the amount */
+.total-amount {
+  color: #047857; /* dark green for amount */
+  font-weight: 900;
+}

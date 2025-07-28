@@ -1,3 +1,19 @@
+/*
+
+Tailwind CSS v4 introduced major changes in how you import the base styles in your global CSS. 
+The old @tailwind base;, @tailwind components;, and @tailwind utilities; 
+directives are deprecated and replaced by a single @import "tailwindcss"; statement.
+
+
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+The @import "tailwindcss"; directive in v4 automatically includes all core layers (base, components, utilities) for you.
+The v4 upgrade removes separate @tailwind base; and similar directives.
+
+
+*/
+
+@import "tailwindcss";
