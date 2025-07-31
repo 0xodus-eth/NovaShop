@@ -1,0 +1,88 @@
+const mongoose = require('mongoose');
+
+const productSchema = new mongoose.Schema({
+  name: {
+    type: String,
+    required: [true, 'Product name is required'],
+    trim: true,
+    maxlength: [100, 'Product name cannot exceed 100 characters']
+  },
+  description: {
+    type: String,
+    required: [true, 'Product description is required'],
+    maxlength: [500, 'Description cannot exceed 500 characters']
+  },
+  price: {
+    type: Number,
+    required: [true, 'Product price is required'],
+    min: [0, 'Price cannot be negative']
+  },
+  category: {
+    type: String,
+    required: [true, 'Product category is required'],
+    enum: ['Electronics', 'Clothing', 'Books', 'Home & Garden', 'Sports', 'Beauty', 'Toys']
+  },
+  stock: {
+    type: Number,
+    required: [true, 'Stock quantity is required'],
+    min: [0, 'Stock cannot be negative'],
+    default: 0
+  },
+  images: [{
+    url: {
+      type: String,
+      required: true
+    },
+    alt: {
+      type: String,
+      default: ''
+    }
+  }],
+  brand: {
+    type: String,
+    trim: true
+  },
+  tags: [{
+    type: String,
+    trim: true
+  }],
+  rating: {
+    average: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 5
+    },
+    count: {
+      type: Number,
+      default: 0
+    }
+  },
+  isActive: {
+    type: Boolean,
+    default: true
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now
+  },
+  updatedAt: {
+    type: Date,
+    default: Date.now
+  }
+});
+
+// Update the updatedAt field before saving
+productSchema.pre('save', function(next) {
+  this.updatedAt = Date.now();
+  next();
+});
+
+// Create indexes for better query performance
+productSchema.index({ name: 'text', description: 'text' });
+productSchema.index({ category: 1 });
+productSchema.index({ price: 1 });
+productSchema.index({ 'rating.average': -1 });
+productSchema.index({ createdAt: -1 });
+
+module.exports = mongoose.model('Product', productSchema);
